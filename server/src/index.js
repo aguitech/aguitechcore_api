@@ -22,6 +22,7 @@ import { getSitemap, getRobots } from './controllers/sitemap.controller.js';
 import { errorHandler } from './middleware/error.js';
 import { AuditLog } from './models/AuditLog.js';
 import { Notification } from './models/Notification.js';
+import juegoRoutes from './routes/juego.routes.js';
 
 dotenv.config();
 
@@ -63,6 +64,9 @@ app.use('/api/audit-log', auditRoutes);
 // are mounted before requireAuth inside appointments.routes.js, but the public
 // paths are also whitelisted here at the top level.
 app.use('/api/appointments', appointmentsRoutes);
+
+// 🧩 Juego /juego/* — Tetris con leaderboard autenticado (requiere login en sxxysecret)
+app.use('/api/juego', juegoRoutes);
 
 app.use(errorHandler);
 
