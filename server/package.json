@@ -1,5 +1,5 @@
 {
-  "name": "aguitechcore-api",
+  "name": "aguittech-core-server",
   "version": "1.0.0",
   "description": "Aguitech Core API - MERN backend con JWT",
   "main": "src/index.js",
