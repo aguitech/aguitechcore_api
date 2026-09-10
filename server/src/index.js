@@ -23,6 +23,8 @@ import { errorHandler } from './middleware/error.js';
 import { AuditLog } from './models/AuditLog.js';
 import { Notification } from './models/Notification.js';
 import juegoRoutes from './routes/juego.routes.js';
+import { attachCiudadWS } from './lib/ciudad-ws.js';
+import http from 'http';
 
 dotenv.config();
 
@@ -36,6 +38,11 @@ app.use(express.json({ limit: '2mb' }));
 app.use('/api/uploads', express.static(path.resolve('uploads')));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'aguittech-core', ts: Date.now() }));
+
+// Serve /ciudad/ static game files (so Traefik routes /ciudad → API and WS upgrade reaches ciudad-ws.js)
+const ciudadDir = path.resolve('public/ciudad');
+app.use('/ciudad', express.static(ciudadDir, { index: 'index.html' }));
+app.get('/ciudad', (_req, res) => res.sendFile(path.join(ciudadDir, 'index.html')));
 
 // Sitemap.xml — public, generated on demand from published posts.
 // Mounted at the top level (no auth, no router prefix) so Google/Bing/etc.
@@ -78,5 +85,8 @@ connectDB().then(async () => {
   } catch (err) {
     console.warn('[startup] TTL setup failed:', err?.message || err);
   }
-  app.listen(PORT, () => console.log(`🚀 API corriendo en http://localhost:${PORT}`));
+  // Create HTTP server (so we can attach WebSocket for /ciudad)
+  const httpServer = http.createServer(app);
+  attachCiudadWS(httpServer);
+  httpServer.listen(PORT, () => console.log(`🚀 API corriendo en http://localhost:${PORT} (ws: /ciudad)`));
 });

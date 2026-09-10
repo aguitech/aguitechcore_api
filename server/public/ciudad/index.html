@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>SXXYSECRET // CIUDAD 3D — Mundo Multiusuario</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="version" content="ciudad-v3-login-visible">
+
+<script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.0/dist/aframe-extras.min.js"></script>
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { margin: 0; overflow: hidden; font-family: monospace; background: #000; }
+
+  /* ====== LOGIN PANEL — bottom-left, NEVER blocks gameplay ====== */
+  html, body { margin: 0; padding: 0; }
+  #login-bg {
+    position: fixed !important;
+    left: 20px !important;
+    bottom: 110px !important;     /* above the controls panel */
+    width: 280px !important;
+    background: rgba(2, 4, 15, 0.92) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid #00d4ff66 !important;
+    border-radius: 10px !important;
+    padding: 12px 14px !important;
+    color: #00d4ff !important;
+    box-shadow: 0 0 24px rgba(0,212,255,0.2) !important;
+    z-index: 1001 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Force a-scene & its canvases UNDER the panel */
+  a-scene, .a-canvas, canvas.a-canvas, a-entity, a-camera {
+    z-index: 0 !important;
+  }
+  /* The bottom-left panel shows different content depending on auth state */
+  #login-box h1 { color: #00d4ff; font-size: 12px; margin-bottom: 8px; letter-spacing: 1px; }
+  #login-box p  { color: #aac; font-size: 10px; margin-bottom: 10px; line-height: 1.3; }
+  #login-box input {
+    width: 100%; padding: 7px 9px; margin-bottom: 7px;
+    background: #06080f; border: 1px solid #00d4ff44; color: #00d4ff;
+    border-radius: 5px; font-family: monospace; font-size: 12px;
+    box-sizing: border-box;
+  }
+  #login-box input:focus { outline: none; border-color: #00d4ff; }
+  #login-box button {
+    width: 100%; padding: 8px; background: #00d4ff; color: #000;
+    border: 0; border-radius: 5px; font-weight: 700; cursor: pointer;
+    font-family: monospace; letter-spacing: 1px; font-size: 11px;
+  }
+  #login-box button:hover { background: #00ffff; }
+  #login-error { color: #ff3838; font-size: 10px; margin-top: 5px; min-height: 12px; }
+  #login-status { color: #888; font-size: 9px; margin-top: 6px; }
+
+  /* Authenticated pill (always visible after login) */
+  #user-pill {
+    position: fixed !important;
+    left: 20px !important;
+    bottom: 110px !important;     /* same spot as login-bg */
+    display: none;                /* hidden by default */
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px !important;
+    background: rgba(2, 4, 15, 0.92) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid #00d4ff66 !important;
+    border-radius: 999px !important;     /* pill shape */
+    color: #00d4ff !important;
+    font-family: monospace;
+    font-size: 12px;
+    z-index: 1001 !important;
+    box-shadow: 0 0 18px rgba(0,212,255,0.25) !important;
+  }
+  #user-pill.visible { display: inline-flex !important; }
+  #user-pill .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 10px currentColor;
+  }
+  #user-pill .name { color: #fff; font-weight: 700; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #user-pill .role { color: #888; font-size: 9px; text-transform: uppercase; }
+  #user-pill .logout-btn {
+    background: transparent;
+    color: #ff3838;
+    border: 1px solid #ff383866;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-family: monospace;
+    font-size: 10px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  #user-pill .logout-btn:hover { background: #ff383822; }
+
+  /* ====== HUD ====== */
+  .controls-panel {
+    position: fixed; bottom: 20px; left: 20px; right: 20px;
+    background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px;
+    color: #00d4ff; text-align: center; z-index: 1000;
+    backdrop-filter: blur(8px); border: 1px solid #00d4ff44;
+    pointer-events: none; max-width: 540px; margin: 0 auto;
+  }
+  .controls-panel kbd {
+    background: #0a0e1a; padding: 3px 8px; border-radius: 5px;
+    color: #00d4ff; margin: 0 3px; border: 1px solid #00d4ff44;
+  }
+  .hud-status {
+    position: fixed; top: 20px; left: 20px;
+    background: rgba(0,0,0,0.85); padding: 10px 18px; border-radius: 8px;
+    color: #0f0; z-index: 1000; border-left: 3px solid #00d4ff;
+    font-family: monospace; font-size: 13px; pointer-events: none;
+    min-width: 220px;
+  }
+  .hud-info {
+    position: fixed; top: 20px; right: 20px;
+    background: rgba(0,0,0,0.85); padding: 10px 18px; border-radius: 8px;
+    color: #00d4ff; font-size: 11px; z-index: 1000;
+    text-align: right; font-family: monospace; pointer-events: none;
+  }
+
+  /* ====== PEER LIST ====== */
+  .peer-list {
+    position: fixed; top: 90px; right: 20px;
+    background: rgba(0,0,0,0.85); padding: 12px 14px; border-radius: 8px;
+    color: #fff; font-size: 12px; z-index: 1000;
+    border: 1px solid #00d4ff44; min-width: 220px; pointer-events: none;
+  }
+  .peer-list h3 { color: #00d4ff; font-size: 11px; margin-bottom: 8px; letter-spacing: 1px; }
+  .peer-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-family: monospace; }
+  .peer-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; }
+  .peer-name { color: #ddd; }
+  .peer-you  { color: #00d4ff; font-weight: 700; }
+  .peer-role { font-size: 9px; color: #888; margin-left: 4px; }
+
+  /* ====== CHAT ====== */
+  #chat-box {
+    position: fixed; bottom: 110px; left: 20px;
+    width: 280px; max-height: 220px; overflow-y: auto;
+    background: rgba(0,0,0,0.75); padding: 8px 12px; border-radius: 8px;
+    border: 1px solid #00d4ff44; z-index: 1000; font-size: 12px;
+    font-family: monospace;
+  }
+  #chat-input-row {
+    position: fixed; bottom: 78px; left: 20px;
+    display: flex; gap: 6px; z-index: 1000;
+  }
+  #chat-input {
+    width: 220px; padding: 8px; background: #0a0e1a; color: #00d4ff;
+    border: 1px solid #00d4ff44; border-radius: 6px; font-family: monospace;
+    font-size: 12px;
+  }
+  #chat-send {
+    padding: 8px 14px; background: #00d4ff; color: #000;
+    border: 0; border-radius: 6px; cursor: pointer; font-weight: 700;
+  }
+  .chat-msg { margin-bottom: 4px; }
+  .chat-name { font-weight: 700; }
+  .chat-text { color: #ccc; }
+
+  .conn-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #ff3838; box-shadow: 0 0 8px #ff3838; margin-right: 6px;
+  }
+  .conn-dot.on { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+
+  /* ====== TOUCH GAMEPAD (reuse) ====== */
+  /* (Copied from your original code; kept identical) */
+
+  /* Hide VR button */
+  .a-enter-vr { display: none !important; }
+</style>
+</head>
+
+<body>
+
+<!-- ============== LOGIN PANEL (bottom-left, non-blocking) ============== -->
+<div id="login-bg">
+  <div id="login-box">
+    <h1>🔐 INICIAR SESIÓN</h1>
+    <input id="login-email" type="email" placeholder="email@dominio.com" autocomplete="username" />
+    <input id="login-password" type="password" placeholder="contraseña" autocomplete="current-password" />
+    <button id="login-btn">ENTRAR</button>
+    <div id="login-error"></div>
+    <div id="login-status">Para aparecer en el mundo multijugador</div>
+  </div>
+</div>
+
+<!-- ============== AUTHENTICATED USER PILL (always visible after login) ============== -->
+<div id="user-pill">
+  <span class="avatar" id="userPillAvatar"></span>
+  <span>
+    <div class="name" id="userPillName">—</div>
+    <div class="role" id="userPillRole">—</div>
+  </span>
+  <button class="logout-btn" id="logoutBtnPill">⏻ SALIR</button>
+</div>
+
+<!-- ============== HUD ============== -->
+<div class="hud-status">
+  <span class="conn-dot" id="connDot"></span>
+  <span id="connText">DESCONECTADO</span><br>
+  🎬 <span id="currentAnim">CARGANDO...</span>
+</div>
+
+<div class="hud-info">
+  📍 X:<span id="posX">0</span> Z:<span id="posZ">0</span> Y:<span id="posY">0.5</span><br>
+  🏃 <span id="speedState">normal</span>
+</div>
+
+<div class="peer-list" id="peerList" style="display:none">
+  <h3>👥 CONECTADOS (<span id="peerCount">0</span>)</h3>
+  <div id="peerItems"></div>
+</div>
+
+<div id="chat-box" style="display:none"></div>
+<div id="chat-input-row" style="display:none">
+  <input id="chat-input" placeholder="Escribe un mensaje... (Enter)" maxlength="200" />
+  <button id="chat-send">›</button>
+</div>
+
+<div class="controls-panel">
+  <p>
+    <kbd>W</kbd> avanzar · <kbd>A</kbd>/<kbd>D</kbd> girar · <kbd>ESPACIO</kbd> saltar · <kbd>SHIFT</kbd> correr · <kbd>R</kbd> reset · <kbd>T</kbd> chat
+  </p>
+  <p style="color: #888; font-size: 10px;">🌐 Multiusuario en tiempo real — todos ven a todos</p>
+</div>
+
+<!-- ============== A-FRAME SCENE ============== -->
+<a-scene background="color:#82c8e5" stats="false" renderer="antialias:true; alpha:false" network>
+
+  <a-entity light="type:ambient; intensity:0.6"></a-entity>
+  <a-entity light="type:directional; intensity:1.2" position="5 10 3"></a-entity>
+  <a-entity light="type:point; intensity:0.8" position="0 3 0" color="#ffaa66"></a-entity>
+
+  <!-- ====== ESCENARIO (ground + buildings) ====== -->
+  <a-entity id="escenario">
+    <!-- Ground -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="400" height="400"
+             color="#1a2a3a" shadow="receive:true"></a-plane>
+
+    <!-- Grid pattern for depth -->
+    <a-entity id="grid" geometry="primitive:plane; width:400; height:400; segments:40; segments-height:40"
+              rotation="-90 0 0" position="0 0.01 0"
+              material="wireframe:true; color:#00d4ff; opacity:0.15"></a-entity>
+
+    <!-- Decorative buildings (procedural, since we don't have the GLB yet) -->
+    <a-box position="20 4 -20" width="8" height="8" depth="8" color="#2a3a4a" shadow></a-box>
+    <a-box position="-25 6 15" width="10" height="12" depth="10" color="#3a4a5a" shadow></a-box>
+    <a-box position="15 3 30" width="6" height="6" depth="6" color="#4a5a6a" shadow></a-box>
+    <a-box position="-30 8 -10" width="12" height="16" depth="12" color="#5a6a7a" shadow></a-box>
+    <a-box position="40 5 5" width="10" height="10" depth="10" color="#6a7a8a" shadow></a-box>
+    <a-cylinder position="0 5 50" radius="4" height="10" color="#3a3a4a" shadow></a-cylinder>
+    <a-sphere position="-50 8 30" radius="6" color="#4a3a5a" shadow></a-sphere>
+
+    <!-- Vertical billboard / video screen (will show your video if uploaded) -->
+    <a-box position="10 4 0" width="4" height="8" depth="0.5" color="#111"></a-box>
+  </a-entity>
+
+  <!-- ====== CAMERA RIG ====== -->
+  <a-entity id="cameraRig" position="0 0 0">
+    <a-camera look-controls="enabled:false" wasd-controls="enabled:false"></a-camera>
+  </a-entity>
+
+  <!-- ====== LOCAL PLAYER ====== -->
+  <a-entity id="player" position="0 0.5 0">
+    <a-entity id="playerModel">
+      <!-- Fallback cube visible immediately; will be replaced by GLB if loaded -->
+      <a-box id="playerBody" width="0.6" height="1.6" depth="0.4" color="#00d4ff"
+             position="0 0.8 0" shadow></a-box>
+      <a-sphere id="playerHead" radius="0.25" color="#00d4ff" position="0 1.85 0" shadow></a-sphere>
+      <!-- Floating name tag -->
+      <a-entity id="myNameTag" position="0 2.4 0" text="value:TÚ; align:center; color:#00d4ff; width:3"
+                geometry="primitive:plane; width:2; height:0.4"
+                material="color:#000; opacity:0.6; transparent:true"
+                ></a-entity>
+    </a-entity>
+
+    <a-circle id="myShadow" radius="0.6" color="#000" opacity="0.25"
+              rotation="-90 0 0" position="0 -0.5 0" material="transparent:true"></a-circle>
+  </a-entity>
+
+  <!-- ====== REMOTE PEERS (populated dynamically) ====== -->
+  <a-entity id="remoteLayer"></a-entity>
+
+</a-scene>
+
+<!-- ============== ENSURE LOGIN PANEL VISIBLE (before any module loads) ============== -->
+<script>
+  // Ensure login panel is visible at bottom-left; clear any prior ciudad-ready
+  (function ensureLoginPanel() {
+    var bg = document.getElementById('login-bg');
+    if (!bg) return;
+    bg.style.cssText = 'position:fixed!important;left:20px!important;bottom:110px!important;width:280px!important;z-index:1001!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;';
+    document.body && (document.body.className = document.body.className.replace('ciudad-ready','').trim());
+  })();
+</script>
+
+<!-- ============== APP JS ============== -->
+<script type="module">
+// =====================================================================
+// AUTH — read JWT from localStorage (set by sxxysecret login) or prompt
+// =====================================================================
+function getToken() {
+  return localStorage.getItem('token') || localStorage.getItem('sx_token') || null;
+}
+
+// Decode JWT payload without verifying signature (just to read `exp`)
+function decodeJwtPayload(token) {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    // base64url → base64
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(b64);
+    return JSON.parse(json);
+  } catch { return null; }
+}
+
+// True if token is missing, malformed, or expired
+function tokenIsStale(token) {
+  if (!token) return true;
+  const p = decodeJwtPayload(token);
+  if (!p || typeof p.exp !== 'number') return true;
+  // exp is in seconds, Date.now() in ms; treat as stale if <30s remaining
+  return (p.exp * 1000) < (Date.now() + 30000);
+}
+
+function clearSession() {
+  try { localStorage.removeItem('token'); } catch {}
+  try { localStorage.removeItem('sx_token'); } catch {}
+}
+
+const $ = (id) => document.getElementById(id);
+
+const loginBg   = $('login-bg');
+const loginErr  = $('login-error');
+const loginStat = $('login-status');
+const loginBtn  = $('login-btn');
+
+function setStatus(msg, color = '#888') {
+  loginStat.textContent = msg;
+  loginStat.style.color = color;
+}
+
+async function ensureAuth() {
+  let token = getToken();
+  // First line of defense: discard stale/expired tokens locally so we ALWAYS show the login
+  if (token && tokenIsStale(token)) {
+    clearSession();
+    token = null;
+  }
+  if (token) {
+    setStatus('Token detectado — verificando...', '#00d4ff');
+    try {
+      const r = await fetch('/api/profile', { headers: { Authorization: 'Bearer ' + token } });
+      if (r.ok) {
+        const data = await r.json();
+        const user = data.user || data;
+        setStatus(`✓ Hola, ${user.name}. Entrando...`, '#00ff88');
+        return { token, user };
+      }
+      // 401/403: token rejected by server — wipe it and fall through to login
+      if (r.status === 401 || r.status === 403) {
+        clearSession();
+        token = null;
+      }
+    } catch {}
+  }
+  // Show login form (it's already visible by default in CSS; just focus the email)
+  return new Promise((resolve, reject) => {
+    setStatus('Ingresa tus credenciales de sxxysecret.com');
+    setTimeout(() => $('login-email').focus(), 100);
+
+    loginBtn.onclick = async () => {
+      const email = $('login-email').value.trim();
+      const password = $('login-password').value;
+      if (!email || !password) {
+        loginErr.textContent = 'Email y contraseña requeridos';
+        return;
+      }
+      loginErr.textContent = '';
+      setStatus('Autenticando...', '#00d4ff');
+      try {
+        const r = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          loginErr.textContent = data.message || data.error || 'Login inválido';
+          setStatus('');
+          return;
+        }
+        localStorage.setItem('token', data.token);
+        setStatus(`✓ Hola, ${data.user.name}. Conectando...`, '#00ff88');
+        resolve({ token: data.token, user: data.user });
+      } catch (e) {
+        loginErr.textContent = 'Error de red: ' + e.message;
+        setStatus('');
+      }
+    };
+  });
+}
+
+// =====================================================================
+// WEBSOCKET — connect to /ciudad with JWT in query
+// =====================================================================
+class CiudadClient {
+  constructor(token) {
+    this.token = token;
+    this.ws = null;
+    this.self = null;
+    this.peers = new Map(); // userId → { el, name, role, color, x,y,z,ry,anim }
+    this.moveThrottle = 33; // ~30fps
+    this.lastSend = 0;
+  }
+
+  connect() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${proto}//${location.host}/ciudad?token=${encodeURIComponent(this.token)}`;
+    setConn(false);
+    this.ws = new WebSocket(url);
+
+    this.ws.onopen = () => setConn(true);
+    this.ws.onclose = () => {
+      setConn(false);
+      // Auto-reconnect after 2s
+      setTimeout(() => this.connect(), 2000);
+    };
+    this.ws.onerror = () => { /* will close */ };
+
+    this.ws.onmessage = (ev) => {
+      let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+      this.handle(msg);
+    };
+  }
+
+  handle(msg) {
+    if (msg.type === 'welcome') {
+      this.self = msg.self;
+      this.applySelfName();
+      // Add existing peers
+      for (const p of msg.peers) this.addOrUpdatePeer(p);
+      renderPeerList();
+    } else if (msg.type === 'peer_joined') {
+      this.addOrUpdatePeer(msg.peer);
+      addChat({ system: `${msg.peer.name} entró al mundo`, color: msg.peer.color });
+    } else if (msg.type === 'peer_left') {
+      this.removePeer(msg.userId);
+      addChat({ system: `alguien salió del mundo`, color: '#888' });
+    } else if (msg.type === 'peer_moved') {
+      this.addOrUpdatePeer(msg.peer);
+    } else if (msg.type === 'chat') {
+      addChat({ name: msg.name, text: msg.text, color: msg.color, role: msg.role });
+    }
+  }
+
+  addOrUpdatePeer(p) {
+    let entry = this.peers.get(p.userId);
+    if (!entry) {
+      // Create new avatar entity
+      const el = document.createElement('a-entity');
+      el.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
+      el.setAttribute('rotation', `0 ${p.ry} 0`);
+
+      const body = document.createElement('a-box');
+      body.setAttribute('width', '0.6');
+      body.setAttribute('height', '1.6');
+      body.setAttribute('depth', '0.4');
+      body.setAttribute('color', p.color);
+      body.setAttribute('position', '0 0.8 0');
+      body.setAttribute('shadow', '');
+      el.appendChild(body);
+
+      const head = document.createElement('a-sphere');
+      head.setAttribute('radius', '0.25');
+      head.setAttribute('color', p.color);
+      head.setAttribute('position', '0 1.85 0');
+      head.setAttribute('shadow', '');
+      el.appendChild(head);
+
+      const tag = document.createElement('a-entity');
+      tag.setAttribute('position', '0 2.4 0');
+      tag.setAttribute('text', `value:${p.name}; align:center; color:${p.color}; width:3`);
+      tag.setAttribute('geometry', 'primitive:plane; width:2.2; height:0.4');
+      tag.setAttribute('material', 'color:#000; opacity:0.6; transparent:true');
+      el.appendChild(tag);
+
+      const shadow = document.createElement('a-circle');
+      shadow.setAttribute('radius', '0.5');
+      shadow.setAttribute('color', '#000');
+      shadow.setAttribute('opacity', '0.25');
+      shadow.setAttribute('rotation', '-90 0 0');
+      shadow.setAttribute('position', '0 -0.5 0');
+      shadow.setAttribute('material', 'transparent:true');
+      el.appendChild(shadow);
+
+      document.getElementById('remoteLayer').appendChild(el);
+
+      entry = { el, body, head, name: p.name, role: p.role, color: p.color, x:p.x, y:p.y, z:p.z, ry:p.ry, anim:p.anim };
+      this.peers.set(p.userId, entry);
+    } else {
+      entry.name = p.name; entry.role = p.role; entry.color = p.color;
+      entry.x = p.x; entry.y = p.y; entry.z = p.z; entry.ry = p.ry; entry.anim = p.anim;
+    }
+    // Smoothly interpolate on next frame
+    entry.target = { x: p.x, y: p.y, z: p.z, ry: p.ry };
+  }
+
+  removePeer(userId) {
+    const e = this.peers.get(userId);
+    if (e?.el?.parentNode) e.el.parentNode.removeChild(e.el);
+    this.peers.delete(userId);
+    renderPeerList();
+  }
+
+  applySelfName() {
+    if (!this.self) return;
+    $('myNameTag').setAttribute('text', `value:${this.self.name}; align:center; color:${this.self.color}; width:3`);
+    // Also recolor my body
+    $('playerBody').setAttribute('color', this.self.color);
+    $('playerHead').setAttribute('color', this.self.color);
+  }
+
+  sendMove(state) {
+    const now = Date.now();
+    if (now - this.lastSend < this.moveThrottle) return;
+    this.lastSend = now;
+    if (this.ws?.readyState === 1) {
+      this.ws.send(JSON.stringify({ type: 'move', ...state }));
+    }
+  }
+
+  sendChat(text) {
+    if (this.ws?.readyState === 1) {
+      this.ws.send(JSON.stringify({ type: 'chat', text }));
+    }
+  }
+
+  // Per-frame: smooth-interpolate remote peer positions to their targets
+  tick() {
+    for (const e of this.peers.values()) {
+      if (!e.target) continue;
+      const lerp = 0.3;
+      const cur = e.el.object3D.position;
+      cur.x += (e.target.x - cur.x) * lerp;
+      cur.y += (e.target.y - cur.y) * lerp;
+      cur.z += (e.target.z - cur.z) * lerp;
+      // Shortest-angle interpolation for ry
+      let dy = e.target.ry - e.el.object3D.rotation.y;
+      while (dy > Math.PI) dy -= Math.PI * 2;
+      while (dy < -Math.PI) dy += Math.PI * 2;
+      e.el.object3D.rotation.y += dy * lerp;
+    }
+  }
+}
+
+// =====================================================================
+// HUD HELPERS
+// =====================================================================
+function setConn(ok) {
+  const dot = $('connDot'); const txt = $('connText');
+  if (ok) { dot.classList.add('on'); txt.textContent = 'CONECTADO'; txt.style.color = '#00ff88'; }
+  else    { dot.classList.remove('on'); txt.textContent = 'DESCONECTADO'; txt.style.color = '#ff3838'; }
+}
+
+function renderPeerList() {
+  const layer = $('peerList'); const items = $('peerItems'); const count = $('peerCount');
+  if (!client) return;
+  layer.style.display = 'block';
+  const all = [];
+  if (client.self) all.push({ userId: client.self.userId, name: client.self.name + ' (TÚ)', role: client.self.role, color: client.self.color, isYou: true });
+  for (const [uid, p] of client.peers) all.push({ userId: uid, name: p.name, role: p.role, color: p.color, isYou: false });
+  count.textContent = all.length;
+  items.innerHTML = all.map(p =>
+    `<div class="peer-item">
+       <span class="peer-dot" style="background:${p.color};color:${p.color}"></span>
+       <span class="peer-name ${p.isYou ? 'peer-you' : ''}">${escapeHtml(p.name)}</span>
+       ${p.role && p.role !== 'member' ? `<span class="peer-role">[${p.role}]</span>` : ''}
+     </div>`
+  ).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function addChat({ name, text, color, role, system }) {
+  const box = $('chat-box'); box.style.display = 'block';
+  $('chat-input-row').style.display = 'flex';
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  if (system) {
+    div.innerHTML = `<span style="color:${color}">· ${escapeHtml(text)}</span>`;
+  } else {
+    div.innerHTML = `<span class="chat-name" style="color:${color}">${escapeHtml(name)}</span><span class="peer-role">${role !== 'member' ? ' [' + role + ']' : ''}</span>: <span class="chat-text">${escapeHtml(text)}</span>`;
+  }
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  // Trim to last 30
+  while (box.children.length > 30) box.removeChild(box.firstChild);
+}
+
+// =====================================================================
+// LOCAL PLAYER CONTROLS (re-used logic from your original code)
+// =====================================================================
+const player = () => document.querySelector('#player');
+const cameraRig = () => document.querySelector('#cameraRig');
+const keys = { w:false, s:false, a:false, d:false, shift:false };
+let isMoving = false, isRunning = false, isJumping = false;
+let jumpStart = 0;
+const walkSpeed = 4.0, runSpeed = 8.0;
+let currentSpeed = walkSpeed;
+
+const JUMP_HEIGHT = 2.0, JUMP_DURATION = 0.7;
+
+function performJump() {
+  if (isJumping || !player()) return;
+  isJumping = true; jumpStart = performance.now() / 1000;
+  $('currentAnim').innerHTML = 'JUMP 🦘';
+  setTimeout(() => { isJumping = false; $('currentAnim').innerHTML = isMoving ? (isRunning ? 'RUN 🏃' : 'WALK 🚶') : 'IDLE 💤'; }, JUMP_DURATION * 1000);
+}
+
+function updateMovement(delta) {
+  const p = player(); if (!p) return;
+  const rotSpeed = 2.5 * delta;
+  if (keys.a) p.object3D.rotation.y += rotSpeed;
+  if (keys.d) p.object3D.rotation.y -= rotSpeed;
+
+  if (keys.w) {
+    const speed = currentSpeed * delta;
+    const ry = p.object3D.rotation.y;
+    let nx = p.object3D.position.x + Math.sin(ry) * speed;
+    let nz = p.object3D.position.z + Math.cos(ry) * speed;
+    nx = Math.max(-180, Math.min(180, nx));
+    nz = Math.max(-180, Math.min(180, nz));
+    p.object3D.position.x = nx; p.object3D.position.z = nz;
+  }
+}
+
+let camTargetX=0, camTargetY=0, camTargetZ=0;
+function updateCamera() {
+  const p = player(); const rig = cameraRig(); if (!p || !rig) return;
+  const dist = 7.0, height = 2.5, smooth = 0.15;
+  const pos = p.object3D.position, ry = p.object3D.rotation.y;
+  const tx = pos.x - Math.sin(ry) * dist;
+  const ty = pos.y + height;
+  const tz = pos.z - Math.cos(ry) * dist;
+  rig.object3D.position.x += (tx - rig.object3D.position.x) * smooth;
+  rig.object3D.position.y += (ty - rig.object3D.position.y) * smooth;
+  rig.object3D.position.z += (tz - rig.object3D.position.z) * smooth;
+
+  const targetY = pos.y + 1.5;
+  const dx = pos.x - rig.object3D.position.x, dy = targetY - rig.object3D.position.y, dz = pos.z - rig.object3D.position.z;
+  rig.object3D.rotation.y = Math.atan2(-dx, -dz);
+  rig.object3D.rotation.x = Math.atan2(dy, Math.sqrt(dx*dx + dz*dz));
+}
+
+function resetPos() {
+  const p = player(); if (!p) return;
+  p.object3D.position.set(0, 0.5, 0); p.object3D.rotation.set(0, 0, 0);
+}
+
+function setInputs() {
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'w' || k === 'arrowup')   { keys.w = true; isMoving = true; }
+    if (k === 's' || k === 'arrowdown') { keys.s = true; isMoving = true; }
+    if (k === 'a' || k === 'arrowleft') { keys.a = true; }
+    if (k === 'd' || k === 'arrowright'){ keys.d = true; }
+    if (k === 'shift') { isRunning = true; currentSpeed = runSpeed; $('speedState').innerHTML = '🏃 SPRINT'; $('speedState').style.color = '#00d4ff'; }
+    if (k === 'r') resetPos();
+    if (k === ' ' || k === 'space') { performJump(); e.preventDefault(); }
+    if (k === 't') { $('chat-input').focus(); }
+  });
+  window.addEventListener('keyup', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'w' || k === 'arrowup')   keys.w = false;
+    if (k === 's' || k === 'arrowdown') keys.s = false;
+    if (k === 'a' || k === 'arrowleft') keys.a = false;
+    if (k === 'd' || k === 'arrowright')keys.d = false;
+    if (k === 'shift') { isRunning = false; currentSpeed = walkSpeed; $('speedState').innerHTML = 'normal'; $('speedState').style.color = '#888'; }
+    isMoving = keys.w || keys.s || keys.a || keys.d;
+  });
+
+  // Chat
+  const input = $('chat-input');
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && input.value.trim()) {
+      client?.sendChat(input.value.trim());
+      input.value = '';
+    }
+  });
+  $('chat-send').addEventListener('click', () => {
+    if (input.value.trim()) { client.sendChat(input.value.trim()); input.value = ''; }
+  });
+}
+
+// =====================================================================
+// GAME LOOP
+// =====================================================================
+let lastT = 0;
+function gameLoop(now) {
+  const nowSec = now / 1000;
+  let delta = Math.min(0.033, (now - lastT) / 1000) || 0.016;
+  lastT = now;
+
+  // Jump height
+  if (isJumping && player()) {
+    const t = (nowSec - jumpStart) / JUMP_DURATION;
+    const h = Math.sin(Math.min(1, t) * Math.PI) * JUMP_HEIGHT;
+    player().object3D.position.y = 0.5 + h;
+  } else if (player()) {
+    player().object3D.position.y = 0.5;
+  }
+
+  updateMovement(delta);
+  updateCamera();
+  client?.tick();
+
+  // Send local position to server (throttled inside)
+  if (player()) {
+    const p = player().object3D;
+    client?.sendMove({
+      x: p.position.x, y: p.position.y, z: p.position.z, ry: p.rotation.y,
+      anim: isJumping ? 'jump' : (isMoving ? (isRunning ? 'run' : 'walk') : 'idle'),
+    });
+  }
+
+  // HUD
+  if (player()) {
+    $('posX').textContent = player().object3D.position.x.toFixed(1);
+    $('posZ').textContent = player().object3D.position.z.toFixed(1);
+    $('posY').textContent = player().object3D.position.y.toFixed(2);
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// =====================================================================
+// BOOT
+// =====================================================================
+let client = null;
+window.addEventListener('load', async () => {
+  setInputs();
+  requestAnimationFrame(gameLoop);
+
+  const { token, user } = await ensureAuth();
+  document.body.classList.add('ciudad-ready');
+
+  // Hide the login panel cleanly
+  var lb = document.getElementById('login-bg');
+  if (lb) { lb.style.cssText = 'display:none!important;visibility:hidden!important;'; }
+
+  // Show the authenticated user pill with the real name + role
+  var pill = document.getElementById('user-pill');
+  var pillName = document.getElementById('userPillName');
+  var pillRole = document.getElementById('userPillRole');
+  var pillAvatar = document.getElementById('userPillAvatar');
+  if (pill && pillName) {
+    pillName.textContent = (user && (user.name || user.email)) || 'Tú';
+    if (pillRole) pillRole.textContent = (user && user.role) || 'guest';
+    if (pillAvatar) {
+      // Hash user email to a vibrant color so each user gets a unique avatar tint
+      var seed = ((user && user.email) || 'anon').split('').reduce(function(a,c){a=((a<<5)-a)+c.charCodeAt(0);return a&a;},0);
+      var hue = Math.abs(seed) % 360;
+      pillAvatar.style.background = 'hsl(' + hue + ',80%,55%)';
+      pillAvatar.style.color = 'hsl(' + hue + ',80%,55%)';
+    }
+    pill.classList.add('visible');
+  }
+
+  client = new CiudadClient(token);
+  client.connect();
+
+  // If WebSocket fails to open within 5s, the token is invalid — bounce back to login
+  setTimeout(() => {
+    if (!client || !client.ws || client.ws.readyState !== 1) {
+      console.warn('[ciudad] WebSocket no se abrió — token probablemente inválido');
+      setStatus('Conexión fallida — vuelve a iniciar sesión', '#ff3838');
+    }
+  }, 5000);
+
+  // Logout button (in the user pill): clear session and reload to show the login form
+  var lbBtn = document.getElementById('logoutBtnPill');
+  if (lbBtn) lbBtn.onclick = function() {
+    clearSession();
+    location.reload();
+  };
+});
+</script>
+
+</body>
+</html>
