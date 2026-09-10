@@ -1,60 +1,45 @@
-// WebSocket server for /ciudad/ — authenticates via JWT in the query string
-// or Authorization header (browsers can't send custom headers on WS upgrade).
+// WebSocket handler for /ciudad/ — multiuser 3D world
 //
-// Protocol (JSON over WS):
-//   client → server:  { type: 'move', x, y, z, ry, anim }
+// Wire protocol (JSON):
 //   server → client:  { type: 'welcome', self: <me>, peers: [...] }
-//   server → client:  { type: 'peer_joined', peer: {...} }
+//   server → client:  { type: 'peer_joined', peer }
+//   server → client:  { type: 'peer_moved', peer }
 //   server → client:  { type: 'peer_left', userId }
-//   server → all:     { type: 'peer_moved', peer: {...} }
 //   server → all:     { type: 'chat', userId, name, text, ts }
+//   client → server:  { type: 'move', x, y, z, ry, anim }
+//   client → server:  { type: 'chat', text }
+//   client → server:  { type: 'dm', to: userId, text }      ← NEW: private DM
+//   server → 2 users: { type: 'dm', from, fromName, to, text, ts, conversationId? }
 
 import { WebSocketServer } from 'ws';
+import { presence } from './ciudad-presence.js';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import { presence } from './ciudad-presence.js';
+// JWT_SECRET comes from process.env, set in auth controller
 
 const HEARTBEAT_MS = 15000;
-
-function authenticate(req) {
-  try {
-    const url = new URL(req.url, 'http://x');
-    const token =
-      url.searchParams.get('token') ||
-      (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    if (!token) return null;
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    return payload;
-  } catch {
-    return null;
-  }
-}
 
 export function attachCiudadWS(httpServer) {
   const wss = new WebSocketServer({ noServer: true });
 
-  function broadcast(payload, excludeWs = null) {
-    const data = JSON.stringify(payload);
-    for (const c of wss.clients) {
-      if (c === excludeWs) continue;
-      if (c.readyState === 1) c.send(data);
-    }
-  }
-
   httpServer.on('upgrade', async (req, socket, head) => {
-    const url = new URL(req.url, 'http://x');
+    const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname !== '/ciudad') return; // other upgrades untouched
 
-    const payload = authenticate(req);
-    if (!payload) {
+    // Authenticate via ?token=...
+    const token = url.searchParams.get('token');
+    if (!token) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
       return;
     }
 
     let user;
-    try { user = await User.findById(payload.id).lean(); } catch {}
-    if (!user) {
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET);
+      user = await User.findById(payload.id).lean();
+      if (!user) throw new Error('user not found');
+    } catch (err) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
       return;
@@ -76,6 +61,7 @@ export function attachCiudadWS(httpServer) {
         userId: String(user._id),
         name: user.name,
         role: user.role,
+        email: user.email,
         color: me.color,
       },
       peers: presence.snapshot(String(user._id)),
@@ -89,6 +75,7 @@ export function attachCiudadWS(httpServer) {
         userId: String(user._id),
         name: user.name,
         role: user.role,
+        email: user.email,
         color: me.color,
         x: me.x, y: me.y, z: me.z, ry: me.ry, anim: me.anim,
       },
@@ -109,6 +96,7 @@ export function attachCiudadWS(httpServer) {
             userId: String(user._id),
             name: user.name,
             role: user.role,
+            email: user.email,
             color: me.color,
             x: updated.x, y: updated.y, z: updated.z, ry: updated.ry, anim: updated.anim,
           },
@@ -121,10 +109,39 @@ export function attachCiudadWS(httpServer) {
           userId: String(user._id),
           name: user.name,
           role: user.role,
+          email: user.email,
           color: me.color,
           text,
           ts: Date.now(),
         });
+      } else if (msg.type === 'dm') {
+        // Private direct message — only delivered to the two participants
+        const toId = String(msg.to || '');
+        const text = String(msg.text || '').slice(0, 500);
+        if (!toId || !text.trim()) return;
+        const fromId = String(user._id);
+        if (toId === fromId) return; // ignore self-DM
+
+        const payload = {
+          type: 'dm',
+          from: fromId,
+          fromName: user.name,
+          fromEmail: user.email,
+          fromColor: me.color,
+          to: toId,
+          text,
+          ts: Date.now(),
+        };
+
+        // Send to recipient (if online in this world) and echo back to sender
+        const recipient = presence.peers.get(toId);
+        if (recipient && recipient.ws.readyState === 1) {
+          recipient.ws.send(JSON.stringify(payload));
+        }
+        // Echo to sender's other tabs (don't double-send to self)
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify(payload));
+        }
       }
     });
 
@@ -134,6 +151,16 @@ export function attachCiudadWS(httpServer) {
       const uid = presence.removeByWs(ws);
       if (uid) broadcast({ type: 'peer_left', userId: uid });
     });
+  }
+
+  function broadcast(msg, exceptWs = null) {
+    const data = JSON.stringify(msg);
+    for (const client of wss.clients) {
+      if (client === exceptWs) continue;
+      if (client.readyState === 1) {
+        try { client.send(data); } catch {}
+      }
+    }
   }
 
   // Heartbeat: drop silent sockets

@@ -4,10 +4,6 @@
 <meta charset="utf-8">
 <title>SXXYSECRET // CIUDAD 3D — Mundo Multiusuario</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta name="version" content="ciudad-v3-login-visible">
 
 <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.0/dist/aframe-extras.min.js"></script>
@@ -16,87 +12,52 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { margin: 0; overflow: hidden; font-family: monospace; background: #000; }
 
-  /* ====== LOGIN PANEL — bottom-left, NEVER blocks gameplay ====== */
-  html, body { margin: 0; padding: 0; }
+  /* ====== LOGIN OVERLAY ====== */
   #login-bg {
-    position: fixed !important;
-    left: 20px !important;
-    bottom: 110px !important;     /* above the controls panel */
-    width: 280px !important;
-    background: rgba(2, 4, 15, 0.92) !important;
-    backdrop-filter: blur(12px) !important;
-    border: 1px solid #00d4ff66 !important;
-    border-radius: 10px !important;
-    padding: 12px 14px !important;
-    color: #00d4ff !important;
-    box-shadow: 0 0 24px rgba(0,212,255,0.2) !important;
-    z-index: 1001 !important;
-    pointer-events: auto !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+    position: fixed !important; inset: 0 !important;
+    background: rgba(2, 4, 15, 0.99);
+    display: flex !important; align-items: center; justify-content: center;
+    z-index: 999999 !important; backdrop-filter: blur(20px);
+    width: 100vw; height: 100vh; top: 0; left: 0;
   }
-  /* Force a-scene & its canvases UNDER the panel */
-  a-scene, .a-canvas, canvas.a-canvas, a-entity, a-camera {
-    z-index: 0 !important;
+  /* Hide EVERYTHING that is not the login until user authenticates */
+  body:not(.ciudad-ready) a-scene,
+  body:not(.ciudad-ready) .a-canvas,
+  body:not(.ciudad-ready) canvas.a-canvas,
+  body:not(.ciudad-ready) .controls-panel,
+  body:not(.ciudad-ready) .hud-status,
+  body:not(.ciudad-ready) .hud-info,
+  body:not(.ciudad-ready) .peer-list,
+  body:not(.ciudad-ready) #chat-box,
+  body:not(.ciudad-ready) #chat-input-row {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
-  /* The bottom-left panel shows different content depending on auth state */
-  #login-box h1 { color: #00d4ff; font-size: 12px; margin-bottom: 8px; letter-spacing: 1px; }
-  #login-box p  { color: #aac; font-size: 10px; margin-bottom: 10px; line-height: 1.3; }
+  body.ciudad-ready #login-bg {
+    display: none !important;
+  }
+  #login-box {
+    background: #0a0e1a; border: 1px solid #00d4ff; border-radius: 14px;
+    padding: 32px; max-width: 420px; width: 90%; color: #00d4ff;
+    box-shadow: 0 0 60px rgba(0,212,255,0.25);
+  }
+  #login-box h1 { color: #00d4ff; font-size: 18px; margin-bottom: 18px; letter-spacing: 2px; }
+  #login-box p  { color: #aac; font-size: 12px; margin-bottom: 22px; }
   #login-box input {
-    width: 100%; padding: 7px 9px; margin-bottom: 7px;
+    width: 100%; padding: 12px; margin-bottom: 12px;
     background: #06080f; border: 1px solid #00d4ff44; color: #00d4ff;
-    border-radius: 5px; font-family: monospace; font-size: 12px;
-    box-sizing: border-box;
+    border-radius: 8px; font-family: monospace; font-size: 14px;
   }
-  #login-box input:focus { outline: none; border-color: #00d4ff; }
   #login-box button {
-    width: 100%; padding: 8px; background: #00d4ff; color: #000;
-    border: 0; border-radius: 5px; font-weight: 700; cursor: pointer;
-    font-family: monospace; letter-spacing: 1px; font-size: 11px;
+    width: 100%; padding: 12px; background: #00d4ff; color: #000;
+    border: 0; border-radius: 8px; font-weight: 700; cursor: pointer;
+    font-family: monospace; letter-spacing: 2px;
   }
   #login-box button:hover { background: #00ffff; }
-  #login-error { color: #ff3838; font-size: 10px; margin-top: 5px; min-height: 12px; }
-  #login-status { color: #888; font-size: 9px; margin-top: 6px; }
-
-  /* Authenticated pill (always visible after login) */
-  #user-pill {
-    position: fixed !important;
-    left: 20px !important;
-    bottom: 110px !important;     /* same spot as login-bg */
-    display: none;                /* hidden by default */
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px !important;
-    background: rgba(2, 4, 15, 0.92) !important;
-    backdrop-filter: blur(12px) !important;
-    border: 1px solid #00d4ff66 !important;
-    border-radius: 999px !important;     /* pill shape */
-    color: #00d4ff !important;
-    font-family: monospace;
-    font-size: 12px;
-    z-index: 1001 !important;
-    box-shadow: 0 0 18px rgba(0,212,255,0.25) !important;
-  }
-  #user-pill.visible { display: inline-flex !important; }
-  #user-pill .avatar {
-    width: 28px; height: 28px; border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 10px currentColor;
-  }
-  #user-pill .name { color: #fff; font-weight: 700; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #user-pill .role { color: #888; font-size: 9px; text-transform: uppercase; }
-  #user-pill .logout-btn {
-    background: transparent;
-    color: #ff3838;
-    border: 1px solid #ff383866;
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-family: monospace;
-    font-size: 10px;
-    cursor: pointer;
-    letter-spacing: 1px;
-  }
-  #user-pill .logout-btn:hover { background: #ff383822; }
+  #login-error { color: #ff3838; font-size: 12px; margin-top: 10px; min-height: 18px; }
+  #login-status { color: #888; font-size: 11px; margin-top: 14px; }
 
   /* ====== HUD ====== */
   .controls-panel {
@@ -174,31 +135,148 @@
 
   /* Hide VR button */
   .a-enter-vr { display: none !important; }
+
+  /* ====== DM MODAL ====== */
+  #dm-modal-bg {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+    font-family: 'Courier New', monospace;
+  }
+  #dm-modal-bg.open { display: flex; }
+  #dm-modal {
+    width: min(420px, 92vw);
+    background: linear-gradient(135deg, #0a1520 0%, #0f1a2a 100%);
+    border: 1px solid ${'#'}00d4ff;
+    border-radius: 12px;
+    box-shadow: 0 0 32px rgba(0,212,255,0.35);
+    padding: 0;
+    color: #e0e0e0;
+    overflow: hidden;
+  }
+  #dm-header {
+    background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+    color: #001020;
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: bold;
+  }
+  #dm-header .name { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  #dm-header .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+  #dm-close {
+    background: transparent; border: none; color: #001020;
+    font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px;
+  }
+  #dm-body {
+    padding: 14px 18px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #dm-thread {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 6px;
+    padding: 10px;
+    height: 220px; overflow-y: auto;
+    font-size: 12px; line-height: 1.5;
+  }
+  #dm-thread:empty::before {
+    content: '💬 Aún no hay mensajes. Sé el primero...';
+    color: #555; font-style: italic;
+
+<!-- ============== DM MODAL ============== -->
+<div id="dm-modal-bg">
+  <div id="dm-modal">
+    <div id="dm-header">
+      <div class="name">
+        <span class="dot" id="dm-peer-dot"></span>
+        <span id="dm-peer-name">—</span>
+        <span id="dm-peer-role" class="peer-role"></span>
+      </div>
+      <button id="dm-close" title="Cerrar">×</button>
+    </div>
+    <div id="dm-body">
+      <div id="dm-thread"></div>
+      <div id="dm-input-row">
+        <input id="dm-input" maxlength="500" placeholder="Mensaje privado... (Enter)" autocomplete="off" />
+        <button id="dm-send" title="Enviar">›</button>
+      </div>
+    </div>
+    <a id="dm-open-full" href="#" target="_blank" rel="noopener">🔗 Abrir chat completo en nueva pestaña ↗</a>
+  </div>
+</div>
+
+  }
+  .dm-msg { margin-bottom: 6px; word-wrap: break-word; }
+  .dm-msg .meta { color: #888; font-size: 10px; margin-bottom: 2px; }
+  .dm-msg.mine .meta { color: #00d4ff; }
+  .dm-msg.theirs .meta { color: #ffaa00; }
+  .dm-msg .text { color: #ddd; }
+  #dm-input-row {
+    display: flex; gap: 8px;
+  }
+  #dm-input {
+    flex: 1;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 4px;
+    color: #fff;
+    padding: 8px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    outline: none;
+  }
+  #dm-input:focus { border-color: #00d4ff; box-shadow: 0 0 6px rgba(0,212,255,0.4); }
+  #dm-send {
+    background: linear-gradient(135deg, #00d4ff, #0066ff);
+    color: #001020;
+    border: none; border-radius: 4px;
+    padding: 8px 14px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  #dm-send:hover { filter: brightness(1.15); }
+  #dm-open-full {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    background: rgba(0,212,255,0.08);
+    border-top: 1px solid rgba(0,212,255,0.2);
+    color: #00d4ff;
+    text-decoration: none;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    transition: background 0.15s;
+  }
+  #dm-open-full:hover { background: rgba(0,212,255,0.18); }
+
+  /* Peer item clickable */
+  .peer-item.clickable {
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.12s;
+    user-select: none;
+  }
+  .peer-item.clickable:hover { background: rgba(0,212,255,0.18); }
+  .peer-item.clickable:active { background: rgba(0,212,255,0.35); }
 </style>
 </head>
 
 <body>
 
-<!-- ============== LOGIN PANEL (bottom-left, non-blocking) ============== -->
+<!-- ============== LOGIN ============== -->
 <div id="login-bg">
   <div id="login-box">
-    <h1>🔐 INICIAR SESIÓN</h1>
+    <h1>🌆 SXXYSECRET // CIUDAD 3D</h1>
+    <p>Para entrar al mundo multijugador, inicia sesión con tu cuenta de sxxysecret.com</p>
     <input id="login-email" type="email" placeholder="email@dominio.com" autocomplete="username" />
     <input id="login-password" type="password" placeholder="contraseña" autocomplete="current-password" />
     <button id="login-btn">ENTRAR</button>
     <div id="login-error"></div>
-    <div id="login-status">Para aparecer en el mundo multijugador</div>
+    <div id="login-status"></div>
   </div>
-</div>
-
-<!-- ============== AUTHENTICATED USER PILL (always visible after login) ============== -->
-<div id="user-pill">
-  <span class="avatar" id="userPillAvatar"></span>
-  <span>
-    <div class="name" id="userPillName">—</div>
-    <div class="role" id="userPillRole">—</div>
-  </span>
-  <button class="logout-btn" id="logoutBtnPill">⏻ SALIR</button>
 </div>
 
 <!-- ============== HUD ============== -->
@@ -290,17 +368,6 @@
 
 </a-scene>
 
-<!-- ============== ENSURE LOGIN PANEL VISIBLE (before any module loads) ============== -->
-<script>
-  // Ensure login panel is visible at bottom-left; clear any prior ciudad-ready
-  (function ensureLoginPanel() {
-    var bg = document.getElementById('login-bg');
-    if (!bg) return;
-    bg.style.cssText = 'position:fixed!important;left:20px!important;bottom:110px!important;width:280px!important;z-index:1001!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;';
-    document.body && (document.body.className = document.body.className.replace('ciudad-ready','').trim());
-  })();
-</script>
-
 <!-- ============== APP JS ============== -->
 <script type="module">
 // =====================================================================
@@ -308,32 +375,6 @@
 // =====================================================================
 function getToken() {
   return localStorage.getItem('token') || localStorage.getItem('sx_token') || null;
-}
-
-// Decode JWT payload without verifying signature (just to read `exp`)
-function decodeJwtPayload(token) {
-  try {
-    const part = token.split('.')[1];
-    if (!part) return null;
-    // base64url → base64
-    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
-    const json = atob(b64);
-    return JSON.parse(json);
-  } catch { return null; }
-}
-
-// True if token is missing, malformed, or expired
-function tokenIsStale(token) {
-  if (!token) return true;
-  const p = decodeJwtPayload(token);
-  if (!p || typeof p.exp !== 'number') return true;
-  // exp is in seconds, Date.now() in ms; treat as stale if <30s remaining
-  return (p.exp * 1000) < (Date.now() + 30000);
-}
-
-function clearSession() {
-  try { localStorage.removeItem('token'); } catch {}
-  try { localStorage.removeItem('sx_token'); } catch {}
 }
 
 const $ = (id) => document.getElementById(id);
@@ -350,11 +391,6 @@ function setStatus(msg, color = '#888') {
 
 async function ensureAuth() {
   let token = getToken();
-  // First line of defense: discard stale/expired tokens locally so we ALWAYS show the login
-  if (token && tokenIsStale(token)) {
-    clearSession();
-    token = null;
-  }
   if (token) {
     setStatus('Token detectado — verificando...', '#00d4ff');
     try {
@@ -364,11 +400,6 @@ async function ensureAuth() {
         const user = data.user || data;
         setStatus(`✓ Hola, ${user.name}. Entrando...`, '#00ff88');
         return { token, user };
-      }
-      // 401/403: token rejected by server — wipe it and fall through to login
-      if (r.status === 401 || r.status === 403) {
-        clearSession();
-        token = null;
       }
     } catch {}
   }
@@ -459,6 +490,8 @@ class CiudadClient {
       this.addOrUpdatePeer(msg.peer);
     } else if (msg.type === 'chat') {
       addChat({ name: msg.name, text: msg.text, color: msg.color, role: msg.role });
+    } else if (msg.type === 'dm') {
+      handleIncomingDm(msg);
     }
   }
 
@@ -571,21 +604,124 @@ function setConn(ok) {
   else    { dot.classList.remove('on'); txt.textContent = 'DESCONECTADO'; txt.style.color = '#ff3838'; }
 }
 
+
 function renderPeerList() {
   const layer = $('peerList'); const items = $('peerItems'); const count = $('peerCount');
   if (!client) return;
   layer.style.display = 'block';
   const all = [];
-  if (client.self) all.push({ userId: client.self.userId, name: client.self.name + ' (TÚ)', role: client.self.role, color: client.self.color, isYou: true });
-  for (const [uid, p] of client.peers) all.push({ userId: uid, name: p.name, role: p.role, color: p.color, isYou: false });
+  if (client.self) all.push({ userId: client.self.userId, name: client.self.name + ' (TÚ)', role: client.self.role, color: client.self.color, email: client.self.email, isYou: true });
+  for (const [uid, p] of client.peers) all.push({ userId: uid, name: p.name, role: p.role, color: p.color, email: p.email, isYou: false });
   count.textContent = all.length;
-  items.innerHTML = all.map(p =>
-    `<div class="peer-item">
+  items.innerHTML = all.map(p => {
+    const you = p.isYou;
+    return `
+    <div class="peer-item ${you ? '' : 'clickable'}" ${you ? '' : `data-uid="${p.userId}" data-email="${escapeHtml(p.email||'')}" data-name="${escapeHtml(p.name)}" data-role="${escapeHtml(p.role||'')}" data-color="${p.color}"`}>
        <span class="peer-dot" style="background:${p.color};color:${p.color}"></span>
-       <span class="peer-name ${p.isYou ? 'peer-you' : ''}">${escapeHtml(p.name)}</span>
+       <span class="peer-name ${you ? 'peer-you' : ''}">${escapeHtml(p.name)}</span>
        ${p.role && p.role !== 'member' ? `<span class="peer-role">[${p.role}]</span>` : ''}
-     </div>`
-  ).join('');
+       ${you ? '' : '<span class="peer-chat-hint" style="margin-left:auto;color:#00d4ff;font-size:10px">💬</span>'}
+    </div>`;
+  }).join('');
+
+  // Bind click handlers for non-you peers
+  items.querySelectorAll('.peer-item.clickable').forEach(el => {
+    el.addEventListener('click', () => {
+      const peer = {
+        userId: el.dataset.uid,
+        email: el.dataset.email,
+        name: el.dataset.name,
+        role: el.dataset.role,
+        color: el.dataset.color,
+      };
+      openDmModal(peer);
+    });
+  });
+}
+
+// =====================================================================
+// DM MODAL — private chat between two users
+// Reuses the chat platform at /chat/<conversationId> for the full version.
+// =====================================================================
+let dmCurrentPeer = null;
+const dmThread = []; // [{from, text, ts, mine}]
+
+function openDmModal(peer) {
+  if (!peer || !peer.userId) return;
+  dmCurrentPeer = peer;
+  const bg = $('dm-modal-bg');
+  $('dm-peer-name').textContent = peer.name;
+  $('dm-peer-role').textContent = peer.role && peer.role !== 'member' ? `[${peer.role}]` : '';
+  $('dm-peer-dot').style.background = peer.color || '#00d4ff';
+  $('dm-peer-dot').style.color = peer.color || '#00d4ff';
+  // Render existing thread for this peer
+  renderDmThread();
+  bg.classList.add('open');
+  setTimeout(() => $('dm-input').focus(), 100);
+}
+
+function closeDmModal() {
+  $('dm-modal-bg').classList.remove('open');
+  dmCurrentPeer = null;
+  $('dm-input').value = '';
+}
+
+function renderDmThread() {
+  const thread = $('dm-thread');
+  thread.innerHTML = dmThread
+    .filter(m => dmCurrentPeer && (m.from === dmCurrentPeer.userId || m.to === dmCurrentPeer.userId))
+    .map(m => {
+      const mine = m.mine;
+      const name = mine ? 'Tú' : (m.fromName || dmCurrentPeer.name);
+      const color = mine ? '#00d4ff' : '#ffaa00';
+      const time = new Date(m.ts).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+      return `<div class="dm-msg ${mine ? 'mine' : 'theirs'}">
+        <div class="meta" style="color:${color}">${escapeHtml(name)} · ${time}</div>
+        <div class="text">${escapeHtml(m.text)}</div>
+      </div>`;
+    }).join('');
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function sendDm() {
+  const input = $('dm-input');
+  const text = (input.value || '').trim();
+  if (!text || !dmCurrentPeer || !client || !client.ws || client.ws.readyState !== 1) return;
+  client.ws.send(JSON.stringify({ type: 'dm', to: dmCurrentPeer.userId, text }));
+  // Optimistic local echo (the server will also echo back, dedupe by ts)
+  const ts = Date.now();
+  if (!dmThread.some(m => m.ts === ts && m.from === client.self.userId)) {
+    dmThread.push({ from: client.self.userId, fromName: 'Tú', to: dmCurrentPeer.userId, text, ts, mine: true });
+    renderDmThread();
+  }
+  input.value = '';
+  input.focus();
+}
+
+function handleIncomingDm(msg) {
+  // msg: {type:'dm', from, fromName, fromEmail, fromColor, to, text, ts}
+  if (!client || !client.self) return;
+  const myId = client.self.userId;
+  const mine = msg.from === myId;
+  const peerId = mine ? msg.to : msg.from;
+
+  // Dedupe: skip if I already optimistically added this
+  if (mine && dmThread.some(m => m.ts === msg.ts && m.from === myId)) return;
+  dmThread.push({
+    from: msg.from,
+    fromName: msg.fromName,
+    to: msg.to,
+    text: msg.text,
+    ts: msg.ts,
+    mine,
+  });
+  // If modal is open with this peer, render immediately
+  if (dmCurrentPeer && dmCurrentPeer.userId === peerId) {
+    renderDmThread();
+  } else if (!mine) {
+    // Notification: floating toast in the bottom-right
+    addChat({ system: `📩 DM de ${msg.fromName}: ${msg.text.slice(0, 60)}${msg.text.length>60?'…':''}`, color: '#ffaa00' });
+  }
 }
 
 function escapeHtml(s) {
@@ -609,6 +745,62 @@ function addChat({ name, text, color, role, system }) {
 }
 
 // =====================================================================
+
+// =====================================================================
+// DM MODAL — event bindings (close, send, Enter, open full chat link)
+// =====================================================================
+$('dm-close').addEventListener('click', closeDmModal);
+$('dm-send').addEventListener('click', sendDm);
+$('dm-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendDm();
+  } else if (e.key === 'Escape') {
+    closeDmModal();
+  }
+});
+$('dm-modal-bg').addEventListener('click', (e) => {
+  // Click on backdrop (not on the modal itself) closes
+  if (e.target.id === 'dm-modal-bg') closeDmModal();
+});
+
+async function openFullChat(e) {
+  e.preventDefault();
+  if (!dmCurrentPeer || !dmCurrentPeer.email) {
+    alert('No hay peer con email conocido');
+    return;
+  }
+  const link = $('dm-open-full');
+  const oldText = link.textContent;
+  link.textContent = '⏳ Abriendo conversación...';
+  link.style.pointerEvents = 'none';
+  try {
+    const token = getToken();
+    const res = await fetch('/api/chat/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ email: dmCurrentPeer.email }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'HTTP ' + res.status);
+    }
+    const conv = await res.json();
+    window.open(`https://sxxysecret.com/chat?cid=${encodeURIComponent(conv._id)}`, '_blank');
+    link.textContent = '✓ Chat completo abierto';
+  } catch (err) {
+    console.error('[dm-open-full]', err);
+    link.textContent = '✕ Error: ' + err.message;
+  } finally {
+    setTimeout(() => {
+      link.textContent = oldText;
+      link.style.pointerEvents = '';
+    }, 2500);
+  }
+}
+$('dm-open-full').addEventListener('click', openFullChat);
+
+
 // LOCAL PLAYER CONTROLS (re-used logic from your original code)
 // =====================================================================
 const player = () => document.querySelector('#player');
@@ -752,48 +944,10 @@ window.addEventListener('load', async () => {
   setInputs();
   requestAnimationFrame(gameLoop);
 
-  const { token, user } = await ensureAuth();
+  const { token } = await ensureAuth();
   document.body.classList.add('ciudad-ready');
-
-  // Hide the login panel cleanly
-  var lb = document.getElementById('login-bg');
-  if (lb) { lb.style.cssText = 'display:none!important;visibility:hidden!important;'; }
-
-  // Show the authenticated user pill with the real name + role
-  var pill = document.getElementById('user-pill');
-  var pillName = document.getElementById('userPillName');
-  var pillRole = document.getElementById('userPillRole');
-  var pillAvatar = document.getElementById('userPillAvatar');
-  if (pill && pillName) {
-    pillName.textContent = (user && (user.name || user.email)) || 'Tú';
-    if (pillRole) pillRole.textContent = (user && user.role) || 'guest';
-    if (pillAvatar) {
-      // Hash user email to a vibrant color so each user gets a unique avatar tint
-      var seed = ((user && user.email) || 'anon').split('').reduce(function(a,c){a=((a<<5)-a)+c.charCodeAt(0);return a&a;},0);
-      var hue = Math.abs(seed) % 360;
-      pillAvatar.style.background = 'hsl(' + hue + ',80%,55%)';
-      pillAvatar.style.color = 'hsl(' + hue + ',80%,55%)';
-    }
-    pill.classList.add('visible');
-  }
-
   client = new CiudadClient(token);
   client.connect();
-
-  // If WebSocket fails to open within 5s, the token is invalid — bounce back to login
-  setTimeout(() => {
-    if (!client || !client.ws || client.ws.readyState !== 1) {
-      console.warn('[ciudad] WebSocket no se abrió — token probablemente inválido');
-      setStatus('Conexión fallida — vuelve a iniciar sesión', '#ff3838');
-    }
-  }, 5000);
-
-  // Logout button (in the user pill): clear session and reload to show the login form
-  var lbBtn = document.getElementById('logoutBtnPill');
-  if (lbBtn) lbBtn.onclick = function() {
-    clearSession();
-    location.reload();
-  };
 });
 </script>
 
