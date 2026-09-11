@@ -353,14 +353,22 @@ router.patch('/:id', async (req, res, next) => {
       severity: appt.status === 'cancelled' ? 'warning' : 'info',
     });
 
-    // If status changed, notify the customer if they have a user account
+    // If status changed, notify the customer if they have a user account.
+    // Title uses a centralized Spanish label so we never see "Cita completed"
+    // in the bell — status keys are english internally, human copy is Spanish.
+    const APPT_TITLE = {
+      scheduled: '✅ Cita agendada',
+      confirmed: '✅ Cita confirmada',
+      completed: '✔ Cita completada',
+      no_show:   '⚠ Cita marcada como no asistida',
+    };
     if (appt.customerUser && appt.status !== before.status) {
       notify({
         recipient: appt.customerUser,
         type: appt.status === 'cancelled' ? 'appointment.cancelled' : 'appointment.created',
         title: appt.status === 'cancelled'
           ? `❌ Cita cancelada: ${appt.subject}`
-          : `✅ Cita ${appt.status}: ${appt.subject}`,
+          : `${APPT_TITLE[appt.status] || `✅ Cita ${appt.status}`}: ${appt.subject}`,
         body: `${new Date(appt.startsAt).toLocaleString('es-MX')}`,
         link: '/my-appointments',
         sourceType: 'Appointment',

@@ -135,12 +135,19 @@ export async function updateTask(req, res, next) {
     }
     if (beforeStatus !== null && beforeStatus !== task.status) {
       changes.push('status');
+      // Translate raw status keys to friendly Spanish so the bell shows
+      // "Pendiente → En curso" instead of "pendiente → en_curso".
+      const TASK_LABEL = {
+        pendiente: 'Pendiente',
+        en_curso:  'En curso',
+        hecho:     'Hecho',
+      };
       if (String(task.assignee?._id || '') !== String(req.user._id) && task.assignee) {
         notify({
           recipient: task.assignee._id,
           type: 'task.status_changed',
           title: `🔄 Estado: ${task.title}`,
-          body: `${beforeStatus} → ${task.status}`,
+          body: `${TASK_LABEL[beforeStatus] || beforeStatus} → ${TASK_LABEL[task.status] || task.status}`,
           link: '/tasks',
           sourceType: 'Task',
           sourceId: String(task._id),
