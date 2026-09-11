@@ -13,12 +13,25 @@
   body { margin: 0; overflow: hidden; font-family: monospace; background: #000; }
 
   /* ====== LOGIN OVERLAY ====== */
+  /* Login panel anclado a la esquina inferior izquierda — el mundo 3D se ve detrás */
   #login-bg {
-    position: fixed !important; inset: 0 !important;
-    background: rgba(2, 4, 15, 0.99);
-    display: flex !important; align-items: center; justify-content: center;
-    z-index: 999999 !important; backdrop-filter: blur(20px);
-    width: 100vw; height: 100vh; top: 0; left: 0;
+    position: fixed !important;
+    bottom: 20px; left: 20px;
+    background: transparent;
+    display: flex !important; align-items: flex-end; justify-content: flex-start;
+    z-index: 999999 !important;
+    padding: 0;
+    width: auto; height: auto; top: auto; right: auto;
+    pointer-events: none; /* permite ver/interactuar con la escena detrás */
+  }
+  #login-bg > * { pointer-events: auto; } /* el panel sí captura clicks */
+  /* El mundo 3D (a-scene + canvas) debe estar siempre DEBAJO del login */
+  a-scene, .a-scene, .a-canvas, canvas.a-canvas {
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 100% !important; height: 100% !important;
+    z-index: 1 !important;
+    pointer-events: auto;
   }
   /* Hide EVERYTHING that is not the login until user authenticates */
   body:not(.ciudad-ready) a-scene,
@@ -35,8 +48,119 @@
     opacity: 0 !important;
     pointer-events: none !important;
   }
+  /* Botones flotantes SIEMPRE visibles (logout/login/registro), encima del mundo 3D */
+  #floating-auth {
+    position: fixed !important;
+    top: 20px; left: 20px;
+    z-index: 1000001 !important;
+    display: flex !important; gap: 8px;
+    pointer-events: auto !important;
+  }
+  #floating-auth button {
+    pointer-events: auto !important;
+    cursor: pointer;
+    background: #0a0e1a; color: #00d4ff;
+    border: 1px solid #00d4ff; border-radius: 8px;
+    padding: 8px 14px; font-family: monospace; font-size: 13px;
+    transition: all 0.2s;
+  }
+  #floating-auth button:hover {
+    background: #00d4ff; color: #0a0e1a;
+    box-shadow: 0 0 20px rgba(0,212,255,0.6);
+  }
+  /* Cuando está autenticado, el botón "Cerrar Sesión" debe seguir visible */
+  #floating-auth.logged-in #btn-show-login { display: none; }
+  #floating-auth.logged-in #btn-show-register { display: none; }
+  /* Settings (⚙️) solo visible cuando autenticado */
+  #btn-settings { display: none; }
+  #floating-auth.logged-in #btn-settings { display: inline-block; }
   body.ciudad-ready #login-bg {
     display: none !important;
+  }
+
+  /* ====== SETTINGS MODAL (avatar picker) ====== */
+  #settings-bg {
+    position: fixed; inset: 0; z-index: 1000002;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    font-family: 'Courier New', monospace;
+  }
+  #settings-bg.open { display: flex; }
+  #settings-modal {
+    width: min(640px, 94vw); max-height: 86vh; overflow-y: auto;
+    background: linear-gradient(135deg, #0a1520 0%, #0f1a2a 100%);
+    border: 1px solid #00d4ff; border-radius: 14px;
+    box-shadow: 0 0 36px rgba(0,212,255,0.35);
+    color: #e0e0e0;
+  }
+  #settings-header {
+    background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+    color: #001020; padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: bold; font-size: 15px;
+    position: sticky; top: 0; z-index: 2;
+  }
+  #settings-header button {
+    background: rgba(0,0,0,0.2); color: #001020;
+    border: 0; border-radius: 6px;
+    padding: 4px 10px; cursor: pointer; font-weight: bold;
+    font-family: inherit; font-size: 16px;
+  }
+  #settings-header button:hover { background: rgba(0,0,0,0.4); }
+  #settings-body { padding: 20px; }
+  #settings-body h3 {
+    color: #00d4ff; font-size: 12px;
+    margin-bottom: 14px; letter-spacing: 2px;
+    border-bottom: 1px solid #00d4ff44; padding-bottom: 6px;
+  }
+  .avatar-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px; margin-bottom: 18px;
+  }
+  .avatar-card {
+    background: rgba(0,212,255,0.05); border: 2px solid #00d4ff44;
+    border-radius: 10px; padding: 12px; cursor: pointer;
+    transition: all 0.2s; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    position: relative;
+  }
+  .avatar-card:hover {
+    background: rgba(0,212,255,0.15);
+    border-color: #00d4ff;
+    box-shadow: 0 0 16px rgba(0,212,255,0.3);
+    transform: translateY(-2px);
+  }
+  .avatar-card.selected {
+    border-color: #00ff88;
+    background: rgba(0,255,136,0.1);
+    box-shadow: 0 0 20px rgba(0,255,136,0.4);
+  }
+  .avatar-card.selected::after {
+    content: '✓';
+    color: #00ff88; font-size: 16px; font-weight: bold;
+    position: absolute; top: 6px; right: 8px;
+  }
+  .avatar-preview {
+    width: 110px; height: 110px;
+    background: radial-gradient(circle at 50% 40%, rgba(0,212,255,0.18) 0%, transparent 70%);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 50px;
+  }
+  .avatar-card.selected .avatar-preview {
+    background: radial-gradient(circle at 50% 40%, rgba(0,255,136,0.25) 0%, transparent 70%);
+  }
+  .avatar-name {
+    color: #00d4ff; font-size: 12px; font-weight: bold;
+    font-family: monospace; letter-spacing: 1px;
+  }
+  .avatar-meta {
+    color: #888; font-size: 10px; font-family: monospace;
+  }
+  #settings-status {
+    margin-top: 14px; padding: 10px;
+    background: rgba(0,212,255,0.08); border-radius: 6px;
+    color: #00d4ff; font-size: 11px; text-align: center;
+    min-height: 18px;
   }
   #login-box {
     background: #0a0e1a; border: 1px solid #00d4ff; border-radius: 14px;
@@ -63,7 +187,7 @@
   .controls-panel {
     position: fixed; bottom: 20px; left: 20px; right: 20px;
     background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px;
-    color: #00d4ff; text-align: center; z-index: 1000;
+    color: #00d4ff; text-align: center; z-index: 1000000;
     backdrop-filter: blur(8px); border: 1px solid #00d4ff44;
     pointer-events: none; max-width: 540px; margin: 0 auto;
   }
@@ -74,14 +198,14 @@
   .hud-status {
     position: fixed; top: 20px; left: 20px;
     background: rgba(0,0,0,0.85); padding: 10px 18px; border-radius: 8px;
-    color: #0f0; z-index: 1000; border-left: 3px solid #00d4ff;
+    color: #0f0; z-index: 1000000; border-left: 3px solid #00d4ff;
     font-family: monospace; font-size: 13px; pointer-events: none;
     min-width: 220px;
   }
   .hud-info {
     position: fixed; top: 20px; right: 20px;
     background: rgba(0,0,0,0.85); padding: 10px 18px; border-radius: 8px;
-    color: #00d4ff; font-size: 11px; z-index: 1000;
+    color: #00d4ff; font-size: 11px; z-index: 1000000;
     text-align: right; font-family: monospace; pointer-events: none;
   }
 
@@ -89,7 +213,7 @@
   .peer-list {
     position: fixed; top: 90px; right: 20px;
     background: rgba(0,0,0,0.85); padding: 12px 14px; border-radius: 8px;
-    color: #fff; font-size: 12px; z-index: 1000;
+    color: #fff; font-size: 12px; z-index: 1000000;
     border: 1px solid #00d4ff44; min-width: 220px; pointer-events: none;
   }
   .peer-list h3 { color: #00d4ff; font-size: 11px; margin-bottom: 8px; letter-spacing: 1px; }
@@ -104,12 +228,12 @@
     position: fixed; bottom: 110px; left: 20px;
     width: 280px; max-height: 220px; overflow-y: auto;
     background: rgba(0,0,0,0.75); padding: 8px 12px; border-radius: 8px;
-    border: 1px solid #00d4ff44; z-index: 1000; font-size: 12px;
+    border: 1px solid #00d4ff44; z-index: 1000000; font-size: 12px;
     font-family: monospace;
   }
   #chat-input-row {
     position: fixed; bottom: 78px; left: 20px;
-    display: flex; gap: 6px; z-index: 1000;
+    display: flex; gap: 6px; z-index: 1000000;
   }
   #chat-input {
     width: 220px; padding: 8px; background: #0a0e1a; color: #00d4ff;
@@ -269,11 +393,18 @@
 <!-- ============== LOGIN ============== -->
 <div id="login-bg">
   <div id="login-box">
-    <h1>🌆 SXXYSECRET // CIUDAD 3D</h1>
-    <p>Para entrar al mundo multijugador, inicia sesión con tu cuenta de sxxysecret.com</p>
+    <h1 id="login-title">🌆 SXXYSECRET // CIUDAD 3D</h1>
+    <p id="login-subtitle">Para entrar al mundo multijugador, inicia sesión con tu cuenta de sxxysecret.com</p>
+    <input type="hidden" id="login-mode" value="login" />
+    <div id="name-row" style="display:none;">
+      <input id="login-name" type="text" placeholder="Tu nombre" autocomplete="name" />
+    </div>
     <input id="login-email" type="email" placeholder="email@dominio.com" autocomplete="username" />
     <input id="login-password" type="password" placeholder="contraseña" autocomplete="current-password" />
-    <button id="login-btn">ENTRAR</button>
+    <div id="register-fields" style="display:none;">
+      <input id="login-phone" type="tel" placeholder="teléfono (10 dígitos)" autocomplete="tel" />
+    </div>
+    <button id="login-btn-submit">ENTRAR</button>
     <div id="login-error"></div>
     <div id="login-status"></div>
   </div>
@@ -296,8 +427,8 @@
   <div id="peerItems"></div>
 </div>
 
-<div id="chat-box" style="display:none"></div>
-<div id="chat-input-row" style="display:none">
+<div id="chat-box"></div>
+<div id="chat-input-row">
   <input id="chat-input" placeholder="Escribe un mensaje... (Enter)" maxlength="200" />
   <button id="chat-send">›</button>
 </div>
@@ -309,8 +440,42 @@
   <p style="color: #888; font-size: 10px;">🌐 Multiusuario en tiempo real — todos ven a todos</p>
 </div>
 
+<!-- ============== FLOATING AUTH BUTTONS (always visible) ============== -->
+<div id="floating-auth">
+  <button id="btn-show-login" title="Iniciar Sesión">🔑 Login</button>
+  <button id="btn-show-register" title="Crear cuenta nueva">📝 Registro</button>
+  <button id="btn-settings" title="Configuración de avatar">⚙️ Settings</button>
+  <button id="btn-logout" title="Cerrar Sesión" style="display:none;">🚪 Cerrar Sesión</button>
+</div>
+
+<!-- ============== SETTINGS MODAL (avatar picker) ============== -->
+<div id="settings-bg">
+  <div id="settings-modal">
+    <div id="settings-header">
+      <span>⚙️ CONFIGURACIÓN · MI AVATAR 3D</span>
+      <button id="settings-close" title="Cerrar">✕</button>
+    </div>
+    <div id="settings-body">
+      <h3>👤 ELIGE TU AVATAR</h3>
+      <p style="color:#aac;font-size:11px;margin-bottom:14px;">
+        Selecciona cómo te verán los demás usuarios en la ciudad 3D.
+        Tu elección se guarda por cuenta y se aplica instantáneamente.
+      </p>
+      <div id="avatar-grid" class="avatar-grid">
+        <!-- Populated by renderAvatarPicker() -->
+      </div>
+      <div id="settings-status">Cargando avatares disponibles...</div>
+    </div>
+  </div>
+</div>
+
 <!-- ============== A-FRAME SCENE ============== -->
 <a-scene background="color:#82c8e5" stats="false" renderer="antialias:true; alpha:false" network>
+
+  <!-- ====== ASSETS (GLB models) ====== -->
+  <a-assets>
+    <a-asset-item id="plaza2Model" src="/ciudad/assets/plaza2.glb"></a-asset-item>
+  </a-assets>
 
   <a-entity light="type:ambient; intensity:0.6"></a-entity>
   <a-entity light="type:directional; intensity:1.2" position="5 10 3"></a-entity>
@@ -338,6 +503,26 @@
 
     <!-- Vertical billboard / video screen (will show your video if uploaded) -->
     <a-box position="10 4 0" width="4" height="8" depth="0.5" color="#111"></a-box>
+
+    <!-- ====== PLAZA 3D (GLB asset) ====== -->
+    <!-- plaza2.glb cargado en el centro de la ciudad (spawn del player) -->
+    <a-entity id="plaza"
+              gltf-model="#plaza2Model"
+              position="0 0 -25"
+              rotation="0 0 0"
+              scale="1 1 1"
+              shadow="cast:true; receive:true"
+              data-model-loaded="false">
+      <!-- Spinning indicator mientras carga -->
+      <a-entity id="plaza-loader"
+                geometry="primitive:torus; radius:1.2; tube:0.05; segments:32"
+                material="color:#00d4ff; emissive:#00d4ff; emissiveIntensity:0.6; metalness:0.3"
+                position="0 3 0"
+                animation="property:rotation.y; to:360; dur:2000; loop:true; easing:linear">
+      </a-entity>
+      <a-text value="🏛️ Cargando plaza2.glb..."
+              position="0 2 0" align="center" color="#00d4ff" width="6"></a-text>
+    </a-entity>
   </a-entity>
 
   <!-- ====== CAMERA RIG ====== -->
@@ -377,22 +562,85 @@ function getToken() {
   return localStorage.getItem('token') || localStorage.getItem('sx_token') || null;
 }
 
+
 const $ = (id) => document.getElementById(id);
 
 const loginBg   = $('login-bg');
 const loginErr  = $('login-error');
 const loginStat = $('login-status');
-const loginBtn  = $('login-btn');
+const loginBtn  = $('login-btn-submit');
+const loginBox  = $('login-box');
+
 
 function setStatus(msg, color = '#888') {
   loginStat.textContent = msg;
   loginStat.style.color = color;
 }
 
+// =====================================================================
+// AUTH — login form + JWT persistence
+// =====================================================================
+
+// =====================================================================
+// ASIGNAR LISTENER DE LOGIN INMEDIATAMENTE — no esperar a load/A-Frame
+// Esto previene el bug donde ensureAuth() se cuelga y el botón no responde
+// =====================================================================
+(function attachLoginListener() {
+  const btn = $('login-btn-submit');
+  if (!btn) {
+    console.warn('[ciudad] login button not found yet, retrying in 100ms');
+    setTimeout(attachLoginListener, 100);
+    return;
+  }
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const mode = $('login-mode').value;
+    const email = $('login-email').value.trim();
+    const password = $('login-password').value;
+    if (!email || !password) {
+      loginErr.textContent = 'Email y contraseña requeridos';
+      return;
+    }
+    loginErr.textContent = '';
+    setStatus(mode === 'register' ? 'Creando cuenta...' : 'Autenticando...', '#00d4ff');
+    try {
+      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+      const body = mode === 'register'
+        ? {
+            email, password,
+            name: ($('login-name')?.value || email.split('@')[0]).trim(),
+            phone: ($('login-phone')?.value || '').trim()
+          }
+        : { email, password };
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        loginErr.textContent = data.message || data.error || 'Error';
+        setStatus('');
+        return;
+      }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setStatus(`✓ Hola, ${data.user.name}. Conectando...`, '#00ff88');
+      // Disparar evento custom que ensureAuth() escucha
+      window.dispatchEvent(new CustomEvent('ciudad-auth-success', { detail: { token: data.token, user: data.user } }));
+    } catch (err) {
+      loginErr.textContent = 'Error de red: ' + err.message;
+      setStatus('');
+    }
+  });
+  console.log('[ciudad] login listener attached');
+})();
+
 async function ensureAuth() {
+  // Verificar si ya hay token válido
   let token = getToken();
   if (token) {
-    setStatus('Token detectado — verificando...', '#00d4ff');
     try {
       const r = await fetch('/api/profile', { headers: { Authorization: 'Bearer ' + token } });
       if (r.ok) {
@@ -401,42 +649,17 @@ async function ensureAuth() {
         setStatus(`✓ Hola, ${user.name}. Entrando...`, '#00ff88');
         return { token, user };
       }
+      // Token inválido — limpiar
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      token = null;
     } catch {}
   }
-  // Show login form (it's already visible by default in CSS; just focus the email)
-  return new Promise((resolve, reject) => {
-    setStatus('Ingresa tus credenciales de sxxysecret.com');
-    setTimeout(() => $('login-email').focus(), 100);
-
-    loginBtn.onclick = async () => {
-      const email = $('login-email').value.trim();
-      const password = $('login-password').value;
-      if (!email || !password) {
-        loginErr.textContent = 'Email y contraseña requeridos';
-        return;
-      }
-      loginErr.textContent = '';
-      setStatus('Autenticando...', '#00d4ff');
-      try {
-        const r = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await r.json();
-        if (!r.ok) {
-          loginErr.textContent = data.message || data.error || 'Login inválido';
-          setStatus('');
-          return;
-        }
-        localStorage.setItem('token', data.token);
-        setStatus(`✓ Hola, ${data.user.name}. Conectando...`, '#00ff88');
-        resolve({ token: data.token, user: data.user });
-      } catch (e) {
-        loginErr.textContent = 'Error de red: ' + e.message;
-        setStatus('');
-      }
-    };
+  // Si no hay token, esperar a que el user haga login (listener ya está asignado)
+  setStatus('Ingresa tus credenciales de sxxysecret.com');
+  setTimeout(() => $('login-email').focus(), 100);
+  return new Promise((resolve) => {
+    window.addEventListener('ciudad-auth-success', (e) => resolve(e.detail), { once: true });
   });
 }
 
@@ -455,7 +678,7 @@ class CiudadClient {
 
   connect() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${proto}//${location.host}/ciudad?token=${encodeURIComponent(this.token)}`;
+    const url = `${proto}//${location.host}/ciudad?token=${encodeURIComponent(this.token)}&avatar=${encodeURIComponent(getSelectedAvatarId())}`;
     setConn(false);
     this.ws = new WebSocket(url);
 
@@ -492,6 +715,13 @@ class CiudadClient {
       addChat({ name: msg.name, text: msg.text, color: msg.color, role: msg.role });
     } else if (msg.type === 'dm') {
       handleIncomingDm(msg);
+    } else if (msg.type === 'peer_avatar_changed') {
+      // Peer cambió su avatar — re-render su entity
+      const entry = this.peers.get(msg.userId);
+      if (entry) {
+        entry.avatarId = msg.avatarId;
+        loadRemotePeerAvatar(msg.userId, msg.avatarId, msg.color);
+      }
     }
   }
 
@@ -502,22 +732,13 @@ class CiudadClient {
       const el = document.createElement('a-entity');
       el.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
       el.setAttribute('rotation', `0 ${p.ry} 0`);
+      el.setAttribute('id', `peer-${p.userId}`);
 
-      const body = document.createElement('a-box');
-      body.setAttribute('width', '0.6');
-      body.setAttribute('height', '1.6');
-      body.setAttribute('depth', '0.4');
-      body.setAttribute('color', p.color);
-      body.setAttribute('position', '0 0.8 0');
-      body.setAttribute('shadow', '');
+      // Body container — will hold either primitives or GLTF
+      const body = document.createElement('a-entity');
+      body.setAttribute('id', `peer-body-${p.userId}`);
+      body.setAttribute('position', '0 0 0');
       el.appendChild(body);
-
-      const head = document.createElement('a-sphere');
-      head.setAttribute('radius', '0.25');
-      head.setAttribute('color', p.color);
-      head.setAttribute('position', '0 1.85 0');
-      head.setAttribute('shadow', '');
-      el.appendChild(head);
 
       const tag = document.createElement('a-entity');
       tag.setAttribute('position', '0 2.4 0');
@@ -537,11 +758,21 @@ class CiudadClient {
 
       document.getElementById('remoteLayer').appendChild(el);
 
-      entry = { el, body, head, name: p.name, role: p.role, color: p.color, x:p.x, y:p.y, z:p.z, ry:p.ry, anim:p.anim };
+      entry = { el, body, name: p.name, role: p.role, color: p.color, x:p.x, y:p.y, z:p.z, ry:p.ry, anim:p.anim, avatarId: p.avatarId || 'default' };
       this.peers.set(p.userId, entry);
+      // Render avatar GLTF si el peer eligió uno custom
+      if (entry.avatarId !== 'default') {
+        loadRemotePeerAvatar(p.userId, entry.avatarId, p.color);
+      } else {
+        renderPrimitivePeer(p.userId, p.color);
+      }
     } else {
       entry.name = p.name; entry.role = p.role; entry.color = p.color;
       entry.x = p.x; entry.y = p.y; entry.z = p.z; entry.ry = p.ry; entry.anim = p.anim;
+      if (p.avatarId && p.avatarId !== entry.avatarId) {
+        entry.avatarId = p.avatarId;
+        loadRemotePeerAvatar(p.userId, p.avatarId, p.color);
+      }
     }
     // Smoothly interpolate on next frame
     entry.target = { x: p.x, y: p.y, z: p.z, ry: p.ry };
@@ -551,15 +782,18 @@ class CiudadClient {
     const e = this.peers.get(userId);
     if (e?.el?.parentNode) e.el.parentNode.removeChild(e.el);
     this.peers.delete(userId);
+    window._peerMixers?.delete(userId);
     renderPeerList();
   }
 
   applySelfName() {
     if (!this.self) return;
     $('myNameTag').setAttribute('text', `value:${this.self.name}; align:center; color:${this.self.color}; width:3`);
-    // Also recolor my body
-    $('playerBody').setAttribute('color', this.self.color);
-    $('playerHead').setAttribute('color', this.self.color);
+    // Also recolor my body — only if primitive avatar (playerBody existe)
+    const pb = $('playerBody');
+    const ph = $('playerHead');
+    if (pb) pb.setAttribute('color', this.self.color);
+    if (ph) ph.setAttribute('color', this.self.color);
   }
 
   sendMove(state) {
@@ -593,6 +827,77 @@ class CiudadClient {
       e.el.object3D.rotation.y += dy * lerp;
     }
   }
+}
+
+
+// =====================================================================
+// PEER AVATAR RENDERING (funciones auxiliares)
+// =====================================================================
+function renderPrimitivePeer(userId, color) {
+    const body = document.querySelector(`#peer-body-${userId}`);
+    if (!body) return;
+    while (body.firstChild) body.removeChild(body.firstChild);
+    const box = document.createElement('a-box');
+    box.setAttribute('width', '0.6');
+    box.setAttribute('height', '1.6');
+    box.setAttribute('depth', '0.4');
+    box.setAttribute('color', color || '#00d4ff');
+    box.setAttribute('position', '0 0.8 0');
+    box.setAttribute('shadow', '');
+    body.appendChild(box);
+    const sphere = document.createElement('a-sphere');
+    sphere.setAttribute('radius', '0.25');
+    sphere.setAttribute('color', color || '#00d4ff');
+    sphere.setAttribute('position', '0 1.85 0');
+    sphere.setAttribute('shadow', '');
+    body.appendChild(sphere);
+}
+
+async function loadRemotePeerAvatar(userId, avatarId, color) {
+    const av = AVATAR_CATALOG.find(a => a.id === avatarId);
+    if (!av || av.type !== 'gltf') {
+        renderPrimitivePeer(userId, color);
+        return;
+    }
+    const body = document.querySelector(`#peer-body-${userId}`);
+    if (!body) return;
+    // Limpiar children del body usando object3D (A-Frame) + DOM fallback
+    while (body.object3D.children.length) {
+      body.object3D.remove(body.object3D.children[0]);
+    }
+    while (body.children.length) {
+      body.removeChild(body.children[0]);
+    }
+    try {
+        // Calcular el path base (carpeta donde está el GLTF) para resolver URIs relativos del buffer/bin
+        const basePath = av.src.substring(0, av.src.lastIndexOf('/') + 1);
+        const response = await fetch(av.src);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const buf = await response.arrayBuffer();
+        const loader = new THREE.GLTFLoader();
+        const gltf = await new Promise((res, rej) => loader.parse(buf, basePath, res, rej));
+        let model = gltf.scene || gltf.scenes?.[0];
+        if (!model) throw new Error('GLTF no tiene scene');
+        // THREE.Scene no puede ser hijo de a-entity. Convertir a Group.
+        if (model.type === 'Scene') {
+          const group = new THREE.Group();
+          while (model.children.length) group.add(model.children[0]);
+          model = group;
+        }
+        model.scale.set(...av.scale.split(' ').map(Number));
+        // A-Frame: añadir Object3D al THREE.Object3D del entity (no DOM appendChild)
+        body.object3D.add(model);
+        if (gltf.animations?.length) {
+            const mixer = new THREE.AnimationMixer(model);
+            const anim = gltf.animations.find(a => a.name === av.animIdle) || gltf.animations[0];
+            mixer.clipAction(anim).play();
+            window._peerMixers = window._peerMixers || new Map();
+            window._peerMixers.set(userId, mixer);
+        }
+    } catch (e) {
+        console.warn(`[peer-avatar] failed for ${userId}:`, e);
+        renderPrimitivePeer(userId, color);
+    }
 }
 
 // =====================================================================
@@ -731,14 +1036,32 @@ function escapeHtml(s) {
 function addChat({ name, text, color, role, system }) {
   const box = $('chat-box'); box.style.display = 'block';
   $('chat-input-row').style.display = 'flex';
-  const div = document.createElement('div');
-  div.className = 'chat-msg';
-  if (system) {
-    div.innerHTML = `<span style="color:${color}">· ${escapeHtml(text)}</span>`;
-  } else {
-    div.innerHTML = `<span class="chat-name" style="color:${color}">${escapeHtml(name)}</span><span class="peer-role">${role !== 'member' ? ' [' + role + ']' : ''}</span>: <span class="chat-text">${escapeHtml(text)}</span>`;
+  // Si system es string, ese es el texto del sistema
+  if (typeof system === 'string') text = system;
+  // Empty state hint si está vacío
+  if (box.children.length === 0 && !system) {
+    const hint = document.createElement('div');
+    hint.className = 'chat-msg';
+    hint.innerHTML = `<span style="color:#666;font-style:italic">💬 Aún no hay mensajes. Sé el primero en escribir.</span>`;
+    box.appendChild(hint);
   }
-  box.appendChild(div);
+  if (system) {
+    // Remove hint on first system message
+    const hint = box.querySelector('.chat-msg span[style*="italic"]')?.parentElement;
+    if (hint && hint.children.length === 1 && box.children.length === 1) hint.remove();
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    div.innerHTML = `<span style="color:${color}">· ${escapeHtml(text || '')}</span>`;
+    box.appendChild(div);
+  } else {
+    // Remove hint on first user message
+    const hint = box.querySelector('.chat-msg span[style*="italic"]')?.parentElement;
+    if (hint && box.children.length === 1) hint.remove();
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    div.innerHTML = `<span class="chat-name" style="color:${color}">${escapeHtml(name)}</span><span class="peer-role">${role !== 'member' ? ' [' + role + ']' : ''}</span>: <span class="chat-text">${escapeHtml(text)}</span>`;
+    box.appendChild(div);
+  }
   box.scrollTop = box.scrollHeight;
   // Trim to last 30
   while (box.children.length > 30) box.removeChild(box.firstChild);
@@ -749,20 +1072,37 @@ function addChat({ name, text, color, role, system }) {
 // =====================================================================
 // DM MODAL — event bindings (close, send, Enter, open full chat link)
 // =====================================================================
-$('dm-close').addEventListener('click', closeDmModal);
-$('dm-send').addEventListener('click', sendDm);
-$('dm-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendDm();
-  } else if (e.key === 'Escape') {
-    closeDmModal();
+// Safe element lookup (returns null if missing, never throws)
+function safeBind(id, event, fn) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(event, fn);
+  return el;
+}
+
+// Defer DM modal bindings until DOM is fully ready (A-Frame injects elements after script parse)
+function bindDmEvents() {
+  safeBind('dm-close', 'click', closeDmModal);
+  safeBind('dm-send', 'click', sendDm);
+  const dmInput = document.getElementById('dm-input');
+  if (dmInput) {
+    dmInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendDm();
+      } else if (e.key === 'Escape') {
+        closeDmModal();
+      }
+    });
   }
-});
-$('dm-modal-bg').addEventListener('click', (e) => {
-  // Click on backdrop (not on the modal itself) closes
-  if (e.target.id === 'dm-modal-bg') closeDmModal();
-});
+  safeBind('dm-modal-bg', 'click', (e) => {
+    if (e.target.id === 'dm-modal-bg') closeDmModal();
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindDmEvents);
+} else {
+  bindDmEvents();
+}
 
 async function openFullChat(e) {
   e.preventDefault();
@@ -798,7 +1138,7 @@ async function openFullChat(e) {
     }, 2500);
   }
 }
-$('dm-open-full').addEventListener('click', openFullChat);
+safeBind('dm-open-full', 'click', openFullChat);
 
 
 // LOCAL PLAYER CONTROLS (re-used logic from your original code)
@@ -917,6 +1257,12 @@ function gameLoop(now) {
   updateCamera();
   client?.tick();
 
+  // Animar avatares GLTF (mixer del player + mixers de cada peer)
+  if (window._avatarMixer) window._avatarMixer.update(delta);
+  if (window._peerMixers) {
+    for (const m of window._peerMixers.values()) m.update(delta);
+  }
+
   // Send local position to server (throttled inside)
   if (player()) {
     const p = player().object3D;
@@ -937,6 +1283,239 @@ function gameLoop(now) {
 }
 
 // =====================================================================
+// AVATAR CATALOG — lista de avatares disponibles para los usuarios
+// =====================================================================
+// Cada avatar tiene:
+//   id        → clave estable que se guarda en localStorage y se envía por WS
+//   name      → nombre mostrado en el picker
+//   icon      → emoji preview
+//   type      → 'primitive' (cubo + esfera) o 'gltf' (modelo rigged Mixamo)
+//   src       → ruta al .gltf (solo gltf)
+//   scale     → escala del modelo (Mixamo viene grande)
+//   offsetY   → ajuste vertical para que los pies toquen el piso
+//   animIdle  → nombre de la animación loop de idle (solo gltf)
+const AVATAR_CATALOG = [
+  {
+    id: 'default',
+    name: 'MONITO CÚBICO',
+    icon: '🟦',
+    type: 'primitive',
+    meta: 'Avatar por defecto · bajo consumo',
+  },
+  {
+    id: 'perosnaje_001',
+    name: 'PERSONAJE MIXAMO',
+    icon: '🧍',
+    type: 'gltf',
+    src: '/ciudad/assets/personaje7/perosnaje_001.gltf',
+    scale: '1 1 1',
+    offsetY: -0.1,
+    animIdle: 'Armature|mixamo.com|Layer0',
+    animWalk: 'Armature|mixamo.com|Layer0.001',
+    meta: 'Rigged · 11 animaciones Mixamo',
+  },
+  // Aquí se pueden ir agregando más personajes con sólo añadir entradas al catálogo
+];
+
+const AVATAR_KEY = 'ciudad_avatar';
+
+function getSelectedAvatarId() {
+  return localStorage.getItem(AVATAR_KEY) || 'default';
+}
+
+function setSelectedAvatarId(id) {
+  localStorage.setItem(AVATAR_KEY, id);
+  if (client) client.avatarId = id;
+}
+
+// =====================================================================
+// AVATAR PICKER UI
+// =====================================================================
+function renderAvatarPicker() {
+  const grid = $('avatar-grid');
+  const status = $('settings-status');
+  const selected = getSelectedAvatarId();
+  grid.innerHTML = '';
+  AVATAR_CATALOG.forEach(av => {
+    const card = document.createElement('div');
+    card.className = 'avatar-card' + (av.id === selected ? ' selected' : '');
+    card.dataset.avatarId = av.id;
+    card.innerHTML = `
+      <div class="avatar-preview">${av.icon}</div>
+      <div class="avatar-name">${av.name}</div>
+      <div class="avatar-meta">${av.meta}</div>
+    `;
+    card.addEventListener('click', () => selectAvatar(av.id));
+    grid.appendChild(card);
+  });
+  const cur = AVATAR_CATALOG.find(a => a.id === selected);
+  status.textContent = cur ? `✓ Avatar actual: ${cur.name}` : 'Selecciona un avatar';
+}
+
+async function selectAvatar(id) {
+  const av = AVATAR_CATALOG.find(a => a.id === id);
+  if (!av) return;
+  const status = $('settings-status');
+  status.textContent = `⏳ Cargando ${av.name}...`;
+  try {
+    await applyAvatar(id);
+    setSelectedAvatarId(id);
+    renderAvatarPicker();  // refresh selected highlight
+    status.textContent = `✓ Avatar cambiado a: ${av.name}`;
+    // Broadcast del cambio a otros peers via WS
+    if (client?.ws?.readyState === 1) {
+      client.ws.send(JSON.stringify({ type: 'avatar_change', avatarId: id }));
+    }
+  } catch (e) {
+    console.error('[avatar] failed:', e);
+    status.textContent = `✗ Error cargando avatar: ${e.message}`;
+  }
+}
+
+function openSettings() {
+  renderAvatarPicker();
+  $('settings-bg').classList.add('open');
+}
+function closeSettings() {
+  $('settings-bg').classList.remove('open');
+}
+
+// =====================================================================
+// APPLY AVATAR — reemplaza el contenido de <a-entity id="playerModel">
+// =====================================================================
+async function applyAvatar(avatarId) {
+  const av = AVATAR_CATALOG.find(a => a.id === avatarId) || AVATAR_CATALOG[0];
+  const playerModel = document.querySelector('#playerModel');
+  if (!playerModel) return;
+  // Limpiar hijos actuales (cube, sphere, GLTF previo) usando object3D
+  // removeChild de DOM nativo no remueve Object3D que A-Frame añadió internamente.
+  while (playerModel.object3D.children.length) {
+    playerModel.object3D.remove(playerModel.object3D.children[0]);
+  }
+  // También limpiar hijos DOM por si quedaron primitives (a-box, a-sphere, etc.)
+  while (playerModel.children.length) {
+    playerModel.removeChild(playerModel.children[0]);
+  }
+
+  if (av.type === 'primitive') {
+    // Avatar default: cube body + sphere head (idéntico al render original)
+    const body = document.createElement('a-box');
+    body.setAttribute('id', 'playerBody');
+    body.setAttribute('width', '0.6');
+    body.setAttribute('height', '1.6');
+    body.setAttribute('depth', '0.4');
+    body.setAttribute('color', client?.self?.color || '#00d4ff');
+    body.setAttribute('position', '0 0.8 0');
+    body.setAttribute('shadow', '');
+    playerModel.appendChild(body);
+
+    const head = document.createElement('a-sphere');
+    head.setAttribute('id', 'playerHead');
+    head.setAttribute('radius', '0.25');
+    head.setAttribute('color', client?.self?.color || '#00d4ff');
+    head.setAttribute('position', '0 1.85 0');
+    head.setAttribute('shadow', '');
+    playerModel.appendChild(head);
+    return;
+  }
+
+  if (av.type === 'gltf') {
+    // Cargar GLTF via fetch + THREE.GLTFLoader (aframe-extras lo expone)
+    // Calcular el path base para que el loader resuelva URIs relativos del binario
+    const basePath = av.src.substring(0, av.src.lastIndexOf('/') + 1);
+    const response = await fetch(av.src);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const buf = await response.arrayBuffer();
+    const loader = new THREE.GLTFLoader();
+    const gltf = await new Promise((res, rej) =>
+      loader.parse(buf, basePath, res, rej)
+    );
+    let model = gltf.scene || gltf.scenes?.[0];
+    if (!model) throw new Error('GLTF no tiene scene');
+    // THREE.Scene no puede ser hijo de a-entity. Convertir a Group.
+    if (model.type === 'Scene') {
+      const group = new THREE.Group();
+      while (model.children.length) group.add(model.children[0]);
+      model = group;
+    }
+    model.scale.set(...av.scale.split(' ').map(Number));
+    // A-Frame: añadir Object3D al THREE.Object3D del entity (no DOM appendChild)
+    const entity = document.createElement('a-entity');
+    entity.setAttribute('id', 'playerGltf');
+    entity.setAttribute('position', `0 ${av.offsetY} 0`);
+    entity.setAttribute('rotation', '0 0 0');
+    entity.object3D.add(model);
+    playerModel.object3D.add(entity.object3D);
+    // También añadir al DOM (para que A-Frame lo gestione en su scene graph)
+    playerModel.appendChild(entity);
+
+    // Reproducir animación idle (la primera vez)
+    if (gltf.animations && gltf.animations.length > 0) {
+      const mixer = new THREE.AnimationMixer(model);
+      window._avatarMixer = mixer;
+      window._avatarIdle = av.animIdle;
+      // Mapeo: nombre de animación Mixamo → buscar por sufijo
+      const idleAnim = gltf.animations.find(a => a.name === av.animIdle)
+        || gltf.animations[0];
+      const action = mixer.clipAction(idleAnim);
+      action.play();
+    }
+  }
+}
+
+// =====================================================================
+// FLOATING AUTH BUTTONS (always visible, encima del mundo 3D)
+// =====================================================================
+const floatingAuth = $('floating-auth');
+const btnShowLogin = $('btn-show-login');
+const btnShowRegister = $('btn-show-register');
+const btnLogout = $('btn-logout');
+const btnSettings = $('btn-settings');
+
+function showLogin() {
+  document.body.classList.remove('ciudad-ready');
+  loginBg.style.display = 'flex';
+  // Volver a modo login: mostrar campos de login, ocultar registro
+  loginBox.querySelector('#login-title').textContent = '🌆 SXXYSECRET // CIUDAD 3D';
+  loginBox.querySelector('#login-subtitle').textContent = 'Inicia sesión para entrar al mundo 3D multiusuario';
+  loginBox.querySelector('#login-btn-submit').textContent = 'ENTRAR';
+  loginBox.querySelector('#login-mode').value = 'login';
+  loginBox.querySelector('#register-fields').style.display = 'none';
+  loginBox.querySelector('#name-row').style.display = 'none';
+  floatingAuth.classList.remove('logged-in');
+}
+function showRegister() {
+  document.body.classList.remove('ciudad-ready');
+  loginBg.style.display = 'flex';
+  loginBox.querySelector('#login-title').textContent = '📝 CREAR CUENTA';
+  loginBox.querySelector('#login-subtitle').textContent = 'Regístrate para acceder al mundo 3D';
+  loginBox.querySelector('#login-btn-submit').textContent = 'CREAR CUENTA';
+  loginBox.querySelector('#login-mode').value = 'register';
+  loginBox.querySelector('#register-fields').style.display = 'block';
+  loginBox.querySelector('#name-row').style.display = 'block';
+  floatingAuth.classList.remove('logged-in');
+}
+function doLogout() {
+  // Limpiar TODOS los items de auth para evitar sesiones fantasma
+  ['token', 'sx_token', 'ciudad_token', 'ciudad_user', AVATAR_KEY].forEach(k => localStorage.removeItem(k));
+  // Forzar reload completo (limpia cache del GLTF también)
+  window.location.href = window.location.pathname;
+}
+btnShowLogin.addEventListener('click', showLogin);
+btnShowRegister.addEventListener('click', showRegister);
+btnLogout.addEventListener('click', doLogout);
+btnSettings.addEventListener('click', openSettings);
+$('settings-close').addEventListener('click', closeSettings);
+// Cerrar settings al click fuera del modal
+$('settings-bg').addEventListener('click', (e) => {
+  if (e.target.id === 'settings-bg') closeSettings();
+});
+// ESC también cierra
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('settings-bg').classList.contains('open')) closeSettings();
+});
+
+// =====================================================================
 // BOOT
 // =====================================================================
 let client = null;
@@ -944,10 +1523,53 @@ window.addEventListener('load', async () => {
   setInputs();
   requestAnimationFrame(gameLoop);
 
+  // ====================================================================
+  // PLAZA 3D GLB — Hide loader spinner when model finishes loading
+  // ====================================================================
+  const plaza = document.querySelector('#plaza');
+  const plazaLoader = document.querySelector('#plaza-loader');
+  const plazaText = plaza ? plaza.querySelector('a-text') : null;
+  if (plaza) {
+    plaza.addEventListener('model-loaded', () => {
+      console.log('[ciudad-plaza] plaza2.glb loaded ✓');
+      plaza.setAttribute('data-model-loaded', 'true');
+      // Ocultar loader
+      if (plazaLoader) plazaLoader.parentNode.removeChild(plazaLoader);
+      if (plazaText) plazaText.parentNode.removeChild(plazaText);
+      // Log de bounds para saber el tamaño real del modelo
+      try {
+        const obj = plaza.object3D;
+        const box = new THREE.Box3().setFromObject(obj);
+        const size = box.getSize(new THREE.Vector3());
+        console.log(`[ciudad-plaza] modelo bounds: ${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)}`);
+      } catch(e) { console.warn('bounds error', e); }
+    });
+    // Timeout fallback: si no carga en 15s, mostrar error
+    setTimeout(() => {
+      if (plaza.getAttribute('data-model-loaded') === 'false') {
+        console.warn('[ciudad-plaza] plaza2.glb no cargó en 15s');
+        if (plazaText) plazaText.setAttribute('value', '⚠️ Error cargando plaza2.glb');
+      }
+    }, 15000);
+  }
+
   const { token } = await ensureAuth();
   document.body.classList.add('ciudad-ready');
+  // Usuario autenticado: ocultar login, mostrar botón logout + settings
+  floatingAuth.classList.add('logged-in');
+  btnLogout.style.display = 'inline-block';
+  btnSettings.style.display = 'inline-block';
+  // Empty chat hint al boot
+  const chatBox = $('chat-box');
+  if (chatBox && chatBox.children.length === 0) {
+    chatBox.innerHTML = `<div class="chat-msg"><span style="color:#666;font-style:italic">💬 Aún no hay mensajes. Sé el primero en escribir.</span></div>`;
+  }
   client = new CiudadClient(token);
   client.connect();
+  // Cargar avatar seleccionado (de localStorage) — se aplica DESPUÉS de que la escena A-Frame exista
+  setTimeout(() => applyAvatar(getSelectedAvatarId()).catch(e =>
+    console.warn('[avatar] boot apply failed:', e)
+  ), 100);
 });
 </script>
 

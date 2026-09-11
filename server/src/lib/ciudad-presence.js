@@ -30,7 +30,7 @@ class CiudadPresence {
     this.wsToUser = new Map();
   }
 
-  add(ws, userId, user) {
+  add(ws, userId, user, avatarId = 'default') {
     const entry = {
       ws,
       userId,
@@ -43,6 +43,7 @@ class CiudadPresence {
       ry: 0,
       anim: 'idle',
       color: pickColor(userId),
+      avatarId,
       joinedAt: Date.now(),
       lastSeen: Date.now(),
     };
@@ -66,7 +67,7 @@ class CiudadPresence {
     return userId;
   }
 
-  update(userId, { x, y, z, ry, anim }) {
+  update(userId, { x, y, z, ry, anim, avatarId }) {
     const p = this.peers.get(userId);
     if (!p) return null;
     if (typeof x === 'number') p.x = x;
@@ -74,6 +75,7 @@ class CiudadPresence {
     if (typeof z === 'number') p.z = z;
     if (typeof ry === 'number') p.ry = ry;
     if (typeof anim === 'string') p.anim = anim;
+    if (typeof avatarId === 'string') p.avatarId = avatarId;
     p.lastSeen = Date.now();
     return p;
   }
@@ -89,6 +91,7 @@ class CiudadPresence {
         role: p.role,
         email: p.email,
         color: p.color,
+        avatarId: p.avatarId || 'default',
         x: p.x,
         y: p.y,
         z: p.z,
