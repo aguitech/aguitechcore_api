@@ -678,7 +678,9 @@ class CiudadClient {
 
   connect() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${proto}//${location.host}/ciudad?token=${encodeURIComponent(this.token)}&avatar=${encodeURIComponent(getSelectedAvatarId())}`;
+    // WS lives at /api/ciudad so Traefik's /api rule routes the upgrade to the Node API
+    // (the bare /ciudad path is served by the frontend Vite static build which can't handle WS).
+    const url = `${proto}//${location.host}/api/ciudad?token=${encodeURIComponent(this.token)}&avatar=${encodeURIComponent(getSelectedAvatarId())}`;
     setConn(false);
     this.ws = new WebSocket(url);
 

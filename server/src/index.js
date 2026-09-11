@@ -40,8 +40,17 @@ app.use('/api/uploads', express.static(path.resolve('uploads')));
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'aguittech-core', ts: Date.now() }));
 
 // Serve /ciudad/ static game files (so Traefik routes /ciudad → API and WS upgrade reaches ciudad-ws.js)
+// IMPORTANT: bypass express.static for WebSocket upgrades so the WS server can intercept them.
 const ciudadDir = path.resolve('public/ciudad');
-app.use('/ciudad', express.static(ciudadDir, { index: 'index.html' }));
+app.use('/ciudad', (req, res, next) => {
+  // Bypass for WebSocket upgrades — let the WS server handle them
+  if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
+    return next();
+  }
+  // Only serve static for GET/HEAD
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  express.static(ciudadDir, { index: 'index.html' })(req, res, next);
+});
 app.get('/ciudad', (_req, res) => res.sendFile(path.join(ciudadDir, 'index.html')));
 
 // Sitemap.xml — public, generated on demand from published posts.

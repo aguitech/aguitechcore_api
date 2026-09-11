@@ -23,10 +23,12 @@ const HEARTBEAT_MS = 15000;
 export function attachCiudadWS(httpServer) {
   // Use `noServer: false` (default) so ws handles the upgrade automatically,
   // including HTTP/2 extended CONNECT (RFC 8441) when Traefik forwards it.
-  // The `path: '/ciudad'` filter ensures only requests for /ciudad are handled.
+  // Mounted at /api/ciudad so Traefik's existing `Host(sxxysecret.com) && PathPrefix(/api)`
+  // rule routes the WS upgrade to the API (the bare /ciudad path is served as static
+  // HTML by the frontend Vite build and cannot handle WS upgrades).
   const wss = new WebSocketServer({
     server: httpServer,
-    path: '/ciudad',
+    path: '/api/ciudad',
     handleProtocols: () => false,
   });
 
